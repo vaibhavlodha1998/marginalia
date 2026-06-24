@@ -1,5 +1,4 @@
-import { SystemMessage, HumanMessage } from "@langchain/core/messages";
-import { chatModel } from "@/lib/ollama/models";
+import { glmJson } from "@/lib/ollama/json";
 import { graphSchema, type ConceptGraph } from "@/lib/schemas/ontology";
 
 const SYSTEM = `You extract a concept knowledge graph from a document.
@@ -17,43 +16,6 @@ Rules:
   supporting detail in "body". Aim for the key teachable concepts and their
   prerequisite relationships.`;
 
-function extractJson(text: string): unknown {
-  const fenced = text.replace(/```json\s*|\s*```/g, "");
-  const start = fenced.indexOf("{");
-  const end = fenced.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("no JSON object in response");
-  return JSON.parse(fenced.slice(start, end + 1));
-}
-
-function contentToString(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((c) => (c && typeof c === "object" && "text" in c ? String(c.text) : ""))
-      .join("");
-  }
-  return "";
-}
-
 export async function extractGraph(text: string): Promise<ConceptGraph | null> {
-  const model = chatModel();
-  const user = `Document:\n\n${text}`;
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await model.invoke([
-        new SystemMessage(SYSTEM),
-        new HumanMessage(
-          attempt === 0
-            ? user
-            : `${user}\n\nReturn ONLY valid JSON matching the required shape.`,
-        ),
-      ]);
-      const parsed = graphSchema.safeParse(extractJson(contentToString(res.content)));
-      if (parsed.success) return parsed.data;
-    } catch {
-      // fall through to retry
-    }
-  }
-  return null;
+  return glmJson(SYSTEM, `Document:\n\n${text}`, graphSchema);
 }

@@ -13,3 +13,16 @@ export interface Lesson {
   status: LessonStatus;
   createdAt: string;
 }
+
+export type Difficulty = "easy" | "medium" | "hard";
+export type ObjectiveStatus = "upcoming" | "current" | "done";
+
+export interface Objective {
+  id: string;
+  title: string;
+  difficulty: Difficulty;
+  orderIndex: number;
+  status: ObjectiveStatus;
+  included: boolean;
+  plannedMcqCount: number | null;
+}
