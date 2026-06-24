@@ -86,7 +86,7 @@ export function UploadDropzone({ userId }: { userId: string }) {
           </div>
         </div>
         <p className="mt-[18px] text-center text-[13px] text-ink-3">
-          Reading your document — this usually takes a few seconds.
+          Reading your document — this can take a few minutes for longer PDFs.
         </p>
       </div>
     );
