@@ -43,7 +43,8 @@ export function ProgressTab({
       <div className="flex flex-col gap-3">
         {objectives.map((o) => {
           const p = progress[o.id] ?? { total: 0, correct: 0, firstTry: 0 };
-          const oPct = p.total ? Math.round((p.correct / p.total) * 100) : 0;
+          const planned = o.plannedMcqCount ?? p.total;
+          const oPct = planned ? Math.round((p.correct / planned) * 100) : 0;
           return (
             <div
               key={o.id}
@@ -54,7 +55,7 @@ export function ProgressTab({
                   {o.title}
                 </span>
                 <span className="text-[12.5px] font-semibold text-ink-2">
-                  {p.correct}/{p.total}
+                  {p.correct}/{planned}
                 </span>
               </div>
               <div className="h-[5px] overflow-hidden rounded-full bg-paper">

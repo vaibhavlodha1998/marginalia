@@ -29,13 +29,12 @@ export function LessonWorkspace({
   const [tab, setTab] = useState<WorkspaceTab>("quiz");
   const [chatOpen, setChatOpen] = useState(true);
 
+  // Total is the planned question count (known up front), not the number of
+  // questions generated so far — generation is lazy.
   const totals = objectives.reduce(
     (acc, o) => {
-      const p = progress[o.id];
-      if (p) {
-        acc.correct += p.correct;
-        acc.total += p.total;
-      }
+      acc.total += o.plannedMcqCount ?? progress[o.id]?.total ?? 0;
+      acc.correct += progress[o.id]?.correct ?? 0;
       return acc;
     },
     { correct: 0, total: 0 },
