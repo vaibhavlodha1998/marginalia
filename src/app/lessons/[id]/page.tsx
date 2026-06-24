@@ -1,6 +1,11 @@
-import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { LessonWorkspace } from "@/components/workspace/lesson-workspace";
+import type {
+  ProgressMap,
+  WorkspacePage,
+} from "@/components/workspace/types";
+import type { Objective } from "@/types/lesson";
 
 export default async function LessonPage({
   params,
@@ -9,28 +14,71 @@ export default async function LessonPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("id, title, status")
+    .select("id, title, subject, source_filename, pages, status")
     .eq("id", id)
     .single();
-
   if (!lesson) notFound();
-  if (lesson.status === "plan_pending") redirect(`/lessons/${id}/plan`);
+  if (lesson.status === "parsing" || lesson.status === "plan_pending") {
+    redirect(`/lessons/${id}/plan`);
+  }
+
+  const { data: objRows } = await supabase
+    .from("objectives")
+    .select("id, title, section, difficulty, order_index, status, included, planned_mcq_count")
+    .eq("lesson_id", id)
+    .eq("included", true)
+    .order("order_index");
+
+  const objectives: Objective[] = (objRows ?? []).map((o) => ({
+    id: o.id,
+    title: o.title,
+    section: o.section,
+    difficulty: o.difficulty,
+    orderIndex: o.order_index,
+    status: o.status,
+    included: o.included,
+    plannedMcqCount: o.planned_mcq_count,
+  }));
+
+  const { data: progRows } = await supabase
+    .from("objective_progress")
+    .select("objective_id, total_mcqs, correct_mcqs, first_try_correct")
+    .eq("lesson_id", id);
+
+  const progress: ProgressMap = Object.fromEntries(
+    (progRows ?? []).map((p) => [
+      p.objective_id,
+      { total: p.total_mcqs, correct: p.correct_mcqs, firstTry: p.first_try_correct },
+    ]),
+  );
+
+  const { data: pageRows } = await supabase
+    .from("pdf_pages")
+    .select("page_no, text")
+    .eq("lesson_id", id)
+    .order("page_no");
+
+  const pages: WorkspacePage[] = (pageRows ?? []).map((p) => ({
+    pageNo: p.page_no,
+    text: p.text,
+  }));
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-paper p-8 text-center">
-      <h1 className="font-serif text-2xl font-semibold text-ink">
-        {lesson.title}
-      </h1>
-      <p className="mt-2 text-[14.5px] text-ink-2">
-        {lesson.status === "parsing"
-          ? "Still preparing this lesson…"
-          : "The lesson workspace is coming next."}
-      </p>
-      <Link href="/" className="mt-6 text-[13.5px] font-semibold text-primary">
-        ← Back to library
-      </Link>
-    </div>
+    <LessonWorkspace
+      lesson={{
+        id: lesson.id,
+        title: lesson.title,
+        subject: lesson.subject,
+        sourceFilename: lesson.source_filename,
+        pages: lesson.pages,
+        status: lesson.status,
+      }}
+      objectives={objectives}
+      progress={progress}
+      pages={pages}
+    />
   );
 }
