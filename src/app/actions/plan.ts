@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { glmJson } from "@/lib/ollama/json";
+import { deriveLessonMeta } from "@/lib/llm/title";
 import { planSchema } from "@/lib/schemas/plan";
 import type { Difficulty } from "@/types/lesson";
 
@@ -33,6 +34,24 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     .eq("lesson_id", lessonId)
     .limit(1);
   if (existing && existing.length) return { count: existing.length };
+
+  const { data: titlePages } = await supabase
+    .from("pdf_pages")
+    .select("text")
+    .eq("lesson_id", lessonId)
+    .order("page_no")
+    .limit(3);
+  const titleText = (titlePages ?? [])
+    .map((p) => p.text)
+    .join("\n\n")
+    .slice(0, 4000);
+  const meta = titleText.trim() ? await deriveLessonMeta(titleText) : null;
+  if (meta) {
+    await supabase
+      .from("lessons")
+      .update({ title: meta.title, subject: meta.subject })
+      .eq("id", lessonId);
+  }
 
   const { data: concepts } = await supabase
     .from("concepts")

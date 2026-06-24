@@ -50,7 +50,7 @@ export async function ingestLesson(input: {
 
   await supabase
     .from("lessons")
-    .update({ pages: pages.length })
+    .update({ pages: pages.length, status: "plan_pending" })
     .eq("id", lessonId);
 
   return { lessonId };

@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { extractGraph } from "@/lib/graph/extract";
 import { persistGraph } from "@/lib/graph/store";
-import { deriveLessonMeta } from "@/lib/llm/title";
 
 const MAX_CHARS = 30_000;
 
@@ -24,14 +23,6 @@ export async function buildConceptGraph(
     .map((p) => `[Page ${p.page_no}]\n${p.text}`)
     .join("\n\n")
     .slice(0, MAX_CHARS);
-
-  const meta = text.trim() ? await deriveLessonMeta(text) : null;
-  if (meta) {
-    await supabase
-      .from("lessons")
-      .update({ title: meta.title, subject: meta.subject })
-      .eq("id", lessonId);
-  }
 
   let mode: "graph" | "text_fallback" = "text_fallback";
 

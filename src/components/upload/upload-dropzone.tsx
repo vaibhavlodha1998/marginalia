@@ -4,12 +4,11 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ingestLesson } from "@/app/actions/upload";
-import { buildConceptGraph } from "@/app/actions/graph";
 import { UploadStep } from "./upload-step";
 
 const MAX_BYTES = 40 * 1024 * 1024;
 
-type Phase = "uploading" | "parsing" | "concepts";
+type Phase = "uploading" | "parsing";
 
 export function UploadDropzone({ userId }: { userId: string }) {
   const router = useRouter();
@@ -45,10 +44,7 @@ export function UploadDropzone({ userId }: { userId: string }) {
       setPhase("parsing");
       const { lessonId } = await ingestLesson({ path, filename: file.name });
 
-      setPhase("concepts");
-      await buildConceptGraph(lessonId);
-
-      router.push("/");
+      router.replace(`/lessons/${lessonId}/plan`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed.");
@@ -73,16 +69,8 @@ export function UploadDropzone({ userId }: { userId: string }) {
             <span className="size-[22px] shrink-0 rounded-full border-[2.5px] border-border-muted border-t-primary [animation:mg-spin_.8s_linear_infinite]" />
           </div>
           <div className="flex flex-col gap-3.5 text-[14px]">
-            <UploadStep done label="Uploading your document" />
-            <UploadStep
-              done={phase === "concepts"}
-              active={phase === "parsing"}
-              label="Extracting text from every page"
-            />
-            <UploadStep
-              active={phase === "concepts"}
-              label="Identifying key concepts and structure"
-            />
+            <UploadStep done={phase === "parsing"} active={phase === "uploading"} label="Uploading your document" />
+            <UploadStep active={phase === "parsing"} label="Extracting text from every page" />
           </div>
         </div>
         <p className="mt-[18px] text-center text-[13px] text-ink-3">
