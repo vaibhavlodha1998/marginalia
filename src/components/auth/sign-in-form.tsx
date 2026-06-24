@@ -16,7 +16,7 @@ export function SignInForm() {
       <form action={verify} className="flex max-w-[340px] flex-col gap-3">
         <input type="hidden" name="email" value={sendState.email} />
         <p className="text-[14px] leading-relaxed text-ink-2">
-          We sent a 6-digit code to{" "}
+          We sent a code to{" "}
           <span className="font-semibold text-ink">{sendState.email}</span>.
           Enter it below to continue.
         </p>
@@ -27,11 +27,12 @@ export function SignInForm() {
           name="token"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={6}
-          placeholder="000000"
+          pattern="[0-9]*"
+          maxLength={10}
+          placeholder="Enter your code"
           autoFocus
           required
-          className="tracking-[0.5em]"
+          className="tracking-[0.3em]"
         />
         <Button type="submit" disabled={verifying} className="mt-1">
           {verifying ? "Verifying…" : "Verify & continue"}
