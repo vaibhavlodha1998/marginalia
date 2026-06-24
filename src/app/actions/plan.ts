@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { glmJson } from "@/lib/ollama/json";
+import { fastModel } from "@/lib/ollama/models";
 import { deriveLessonMeta } from "@/lib/llm/title";
 import { planSchema, type Plan } from "@/lib/schemas/plan";
 import { PLAN_SYSTEM } from "@/lib/plan/prompt";
@@ -46,7 +47,7 @@ async function setTitleFromDocument(
 // review. Used by the streaming flow; generatePlan() is the non-streaming path.
 export async function savePlan(lessonId: string, plan: unknown): Promise<void> {
   const supabase = await createClient();
-  const model = serverEnv().LLM_MODEL;
+  const model = serverEnv().FAST_MODEL;
 
   const { data: existing } = await supabase
     .from("objectives")
@@ -99,7 +100,7 @@ async function persistPlan(
 
 export async function generatePlan(lessonId: string): Promise<{ count: number }> {
   const supabase = await createClient();
-  const model = serverEnv().LLM_MODEL;
+  const model = serverEnv().FAST_MODEL;
 
   const { data: existing } = await supabase
     .from("objectives")
@@ -166,11 +167,11 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     const text = (pages ?? [])
       .map((p) => p.text)
       .join("\n\n")
-      .slice(0, 60_000);
+      .slice(0, 45_000);
     prompt = `Document:\n\n${text}`;
   }
 
-  const plan = await glmJson(SYSTEM, prompt, planSchema);
+  const plan = await glmJson(SYSTEM, prompt, planSchema, { model: fastModel() });
   if (!plan) {
     await supabase.from("generations").insert({
       lesson_id: lessonId,

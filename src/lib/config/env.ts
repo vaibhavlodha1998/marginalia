@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const serverSchema = z.object({
   LLM_MODEL: z.string().min(1).default("glm-5.2:cloud"),
-  FAST_MODEL: z.string().min(1).default("gpt-oss:20b"),
+  FAST_MODEL: z.string().min(1).default("deepseek-v4-flash"),
   VISION_MODEL: z.string().min(1).default("qwen3-vl:235b-cloud"),
   EMBED_MODEL: z.string().min(1).default("embeddinggemma"),
   EVAL_MODEL: z.string().min(1).default("glm-5.2:cloud"),

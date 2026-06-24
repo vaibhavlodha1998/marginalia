@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { serverEnv } from "@/lib/config/env";
 import { authorMcqs } from "@/lib/mcq/author";
 import { evaluateMcqs } from "@/lib/mcq/evaluate";
@@ -29,6 +30,10 @@ export async function generateObjectiveMcqs(
     .single();
   if (!obj) throw new Error("objective not found");
 
+  // Ownership verified above via the user client; the long author + jury run can
+  // outlive the user's access token, so do the writes with the service role.
+  const admin = createAdminClient();
+
   const { data: pages } = await supabase
     .from("pdf_pages")
     .select("text")
@@ -47,7 +52,7 @@ export async function generateObjectiveMcqs(
     count,
   });
   if (!mcqs || !mcqs.length) {
-    await supabase.from("generations").insert({
+    await admin.from("generations").insert({
       lesson_id: obj.lesson_id,
       kind: "mcqs",
       model,
@@ -103,7 +108,7 @@ export async function generateObjectiveMcqs(
     order_index: i,
   }));
 
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error } = await admin
     .from("mcqs")
     .insert(rows)
     .select("id");
@@ -133,9 +138,9 @@ export async function generateObjectiveMcqs(
       });
     }
   });
-  if (evalRows.length) await supabase.from("mcq_evaluations").insert(evalRows);
+  if (evalRows.length) await admin.from("mcq_evaluations").insert(evalRows);
 
-  await supabase.from("generations").insert({
+  await admin.from("generations").insert({
     lesson_id: obj.lesson_id,
     kind: "mcqs",
     model,
