@@ -5,7 +5,7 @@ const serverSchema = z.object({
   FAST_MODEL: z.string().min(1).default("deepseek-v4-flash"),
   VISION_MODEL: z.string().min(1).default("qwen3-vl:235b-cloud"),
   EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
-  EVAL_MODEL: z.string().min(1).default("glm-5.2:cloud"),
+  EVAL_MODEL: z.string().min(1).default("deepseek-v4-flash"),
   OLLAMA_API_KEY: z.string().min(1),
   OLLAMA_BASE_URL: z.string().url().default("https://ollama.com"),
   // Embeddings run on a LOCAL Ollama (cloud has no embedding models).

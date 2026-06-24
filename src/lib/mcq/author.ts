@@ -1,5 +1,5 @@
 import { glmJson } from "@/lib/ollama/json";
-import { reasoningModel } from "@/lib/ollama/models";
+import { fastModel } from "@/lib/ollama/models";
 import { mcqSetSchema, type AuthoredMcq } from "@/lib/schemas/mcq";
 
 const SYSTEM = `You write rigorous multiple-choice questions to assess one
@@ -36,20 +36,24 @@ export async function authorMcqs(input: {
   source: string;
   count: number;
   notes?: string[];
+  avoid?: string[];
 }): Promise<AuthoredMcq[] | null> {
   const revision = input.notes?.length
     ? `\n\nFix these issues from the previous attempt:\n- ${input.notes.join("\n- ")}`
     : "";
+  const avoid = input.avoid?.length
+    ? `\n\nDo NOT repeat or closely paraphrase these existing questions:\n- ${input.avoid.join("\n- ")}`
+    : "";
   const user = `Objective: ${input.objective}
 Section: ${input.section}
 
-Write exactly ${input.count} questions for this objective.${revision}
+Write exactly ${input.count} questions for this objective.${revision}${avoid}
 
 Source text:
 ${input.source}`;
 
   const res = await glmJson(SYSTEM, user, mcqSetSchema, {
-    model: reasoningModel(),
+    model: fastModel(),
   });
   return res?.mcqs ?? null;
 }

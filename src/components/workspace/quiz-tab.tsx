@@ -7,7 +7,9 @@ export function QuizTab({
   objectives: WorkspaceObjective[];
 }) {
   const current = objectives.find((o) => o.status !== "done");
-  const index = current ? objectives.indexOf(current) + 1 : objectives.length;
+  const currentIdx = current ? objectives.indexOf(current) : -1;
+  const index = currentIdx >= 0 ? currentIdx + 1 : objectives.length;
+  const next = currentIdx >= 0 ? objectives[currentIdx + 1] : undefined;
 
   if (!current) {
     return (
@@ -32,6 +34,7 @@ export function QuizTab({
     <QuizRunner
       key={current.id}
       objectiveId={current.id}
+      nextObjectiveId={next?.id}
       title={current.title}
       difficulty={current.difficulty}
       objNum={index}

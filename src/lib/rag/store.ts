@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chunkPages } from "./chunk";
+import { chunkPages, type DocChunk } from "./chunk";
+import { semanticChunkPages } from "./semantic";
 import { embed, toVector } from "./embed";
 
 const BATCH = 64;
@@ -9,7 +10,12 @@ export async function buildLessonChunks(
   lessonId: string,
   pages: { pageNo: number; text: string }[],
 ): Promise<number> {
-  const chunks = chunkPages(pages);
+  let chunks: DocChunk[];
+  try {
+    chunks = await semanticChunkPages(pages);
+  } catch {
+    chunks = chunkPages(pages);
+  }
   if (!chunks.length) return 0;
 
   const rows: {

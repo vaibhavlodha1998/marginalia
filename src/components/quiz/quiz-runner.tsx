@@ -19,12 +19,14 @@ type Answer = { selected: number | null; result: GradeResult | null };
 
 export function QuizRunner({
   objectiveId,
+  nextObjectiveId,
   title,
   difficulty,
   objNum,
   objTotal,
 }: {
   objectiveId: string;
+  nextObjectiveId?: string;
   title: string;
   difficulty: Difficulty;
   objNum: number;
@@ -56,11 +58,15 @@ export function QuizRunner({
         setMcqs(list);
         setAnswers(list.map(() => ({ selected: null, result: null })));
         setPhase("ready");
+        // Pre-generate the next objective in the background so advancing is seamless.
+        if (nextObjectiveId) {
+          generateObjectiveMcqs(nextObjectiveId).catch(() => {});
+        }
       } catch {
         setPhase("error");
       }
     })();
-  }, [objectiveId]);
+  }, [objectiveId, nextObjectiveId]);
 
   const current = answers[qIndex] ?? { selected: null, result: null };
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { approvePlan } from "@/app/actions/plan";
+import { generateObjectiveMcqs } from "@/app/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { PlanObjectiveRow } from "./plan-objective-row";
 import type { Difficulty, Objective } from "@/types/lesson";
@@ -64,6 +65,10 @@ export function PlanReview({
   }
 
   function confirm() {
+    // Pre-warm the first objective's questions so the quiz is ready on arrival.
+    const first = rows.find((r) => r.included);
+    if (first) generateObjectiveMcqs(first.id).catch(() => {});
+
     startTransition(async () => {
       await approvePlan(
         lessonId,

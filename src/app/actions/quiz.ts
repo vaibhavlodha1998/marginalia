@@ -66,7 +66,7 @@ export async function generateObjectiveMcqs(
   }
   const count = obj.planned_mcq_count ?? 3;
 
-  let mcqs = await authorMcqs({
+  const mcqs = await authorMcqs({
     objective: obj.title,
     section: obj.section ?? "",
     source,
@@ -83,33 +83,8 @@ export async function generateObjectiveMcqs(
     return { count: 0 };
   }
 
-  let verdicts = await evaluateMcqs(obj.title, source, mcqs);
-
-  // One revision pass if the jury rejected everything.
-  let runs = 1;
-  if (!verdicts.some((v) => v.passed)) {
-    const issues = verdicts
-      .flatMap((v) => v.evaluations.flatMap((e) => e.issues))
-      .slice(0, 6);
-    const revised = await authorMcqs({
-      objective: obj.title,
-      section: obj.section ?? "",
-      source,
-      count,
-      notes: issues,
-    });
-    if (revised && revised.length) {
-      const revisedVerdicts = await evaluateMcqs(obj.title, source, revised);
-      runs = 2;
-      if (
-        revisedVerdicts.filter((v) => v.passed).length >=
-        verdicts.filter((v) => v.passed).length
-      ) {
-        mcqs = revised;
-        verdicts = revisedVerdicts;
-      }
-    }
-  }
+  const verdicts = await evaluateMcqs(obj.title, source, mcqs);
+  const runs = 1;
 
   const rows = mcqs.map((m, i) => ({
     objective_id: objectiveId,
