@@ -20,6 +20,7 @@ export type ObjectiveStatus = "upcoming" | "current" | "done";
 export interface Objective {
   id: string;
   title: string;
+  section: string | null;
   difficulty: Difficulty;
   orderIndex: number;
   status: ObjectiveStatus;

@@ -7,17 +7,20 @@ import { planSchema } from "@/lib/schemas/plan";
 import type { Difficulty } from "@/types/lesson";
 
 const SYSTEM = `You are a tutor planning a lesson from a document.
-Produce focused learning objectives, ordered foundational to advanced using the
-prerequisite relationships, and assign each a difficulty.
+Group focused learning objectives into a few named sections (modules/themes),
+ordered foundational to advanced using the prerequisite relationships.
 Return ONLY a JSON object, no prose, no code fences, of the form:
-{ "objectives": [
-  { "title": "...", "difficulty": "easy", "conceptRefs": ["1","2"], "questionCount": 3 }
+{ "sections": [
+  { "title": "Section name", "objectives": [
+    { "title": "...", "difficulty": "easy", "conceptRefs": ["1","2"], "questionCount": 3 }
+  ] }
 ] }
 Rules:
+- 2-5 sections, each grouping related objectives under a short topical heading.
 - difficulty is one of: easy, medium, hard.
 - conceptRefs are the concept "ref" numbers this objective covers (may be empty).
 - questionCount is a small integer (2-4).
-- Order objectives easiest/foundational first, hardest last.
+- Order sections and objectives easiest/foundational first, hardest last.
 - Only use what the document supports.`;
 
 export async function generatePlan(lessonId: string): Promise<{ count: number }> {
@@ -87,9 +90,14 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     return { count: 0 };
   }
 
-  const objectiveRows = plan.objectives.map((o, i) => ({
+  const flat = plan.sections.flatMap((s) =>
+    s.objectives.map((o) => ({ section: s.title, ...o })),
+  );
+
+  const objectiveRows = flat.map((o, i) => ({
     lesson_id: lessonId,
     title: o.title,
+    section: o.section,
     difficulty: o.difficulty,
     order_index: i,
     status: "upcoming" as const,
@@ -104,7 +112,7 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
   if (error) throw new Error(error.message);
 
   const links: { objective_id: string; concept_id: string }[] = [];
-  plan.objectives.forEach((o, i) => {
+  flat.forEach((o, i) => {
     const objectiveId = inserted?.[i]?.id as string | undefined;
     if (!objectiveId) return;
     for (const ref of o.conceptRefs) {

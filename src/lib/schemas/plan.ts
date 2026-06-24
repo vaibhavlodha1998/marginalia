@@ -9,8 +9,13 @@ export const plannedObjective = z.object({
   questionCount: z.number().int().positive().max(10).default(3),
 });
 
-export const planSchema = z.object({
+export const planSection = z.object({
+  title: z.string().min(1),
   objectives: z.array(plannedObjective).min(1),
+});
+
+export const planSchema = z.object({
+  sections: z.array(planSection).min(1),
 });
 
 export type Plan = z.infer<typeof planSchema>;

@@ -21,13 +21,14 @@ export default async function PlanPage({
 
   const { data: rows } = await supabase
     .from("objectives")
-    .select("id, title, difficulty, order_index, status, included, planned_mcq_count")
+    .select("id, title, section, difficulty, order_index, status, included, planned_mcq_count")
     .eq("lesson_id", id)
     .order("order_index");
 
   const objectives: Objective[] = (rows ?? []).map((o) => ({
     id: o.id,
     title: o.title,
+    section: o.section,
     difficulty: o.difficulty,
     orderIndex: o.order_index,
     status: o.status,

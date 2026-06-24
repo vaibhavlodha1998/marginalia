@@ -16,6 +16,7 @@ const NEXT_DIFFICULTY: Record<Difficulty, Difficulty> = {
 interface Row {
   id: string;
   title: string;
+  section: string;
   difficulty: Difficulty;
   included: boolean;
   questionCount: number;
@@ -34,6 +35,7 @@ export function PlanReview({
     objectives.map((o) => ({
       id: o.id,
       title: o.title,
+      section: o.section ?? "Objectives",
       difficulty: o.difficulty,
       included: o.included,
       questionCount: o.plannedMcqCount ?? 3,
@@ -41,6 +43,13 @@ export function PlanReview({
   );
 
   const includedCount = rows.filter((r) => r.included).length;
+
+  const sections: { title: string; rows: Row[] }[] = [];
+  for (const r of rows) {
+    const group = sections.find((s) => s.title === r.section);
+    if (group) group.rows.push(r);
+    else sections.push({ title: r.section, rows: [r] });
+  }
 
   function toggle(id: string) {
     setRows((rs) =>
@@ -95,17 +104,26 @@ export function PlanReview({
         <span className="ml-auto italic">Tap a difficulty pill to change it</span>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {rows.map((r) => (
-          <PlanObjectiveRow
-            key={r.id}
-            title={r.title}
-            difficulty={r.difficulty}
-            questionCount={r.questionCount}
-            included={r.included}
-            onToggle={() => toggle(r.id)}
-            onCycleDifficulty={() => cycle(r.id)}
-          />
+      <div className="flex flex-col gap-7">
+        {sections.map((section) => (
+          <div key={section.title}>
+            <h2 className="mb-3 font-serif text-[15px] font-semibold uppercase tracking-[0.04em] text-ink-3">
+              {section.title}
+            </h2>
+            <div className="flex flex-col gap-3">
+              {section.rows.map((r) => (
+                <PlanObjectiveRow
+                  key={r.id}
+                  title={r.title}
+                  difficulty={r.difficulty}
+                  questionCount={r.questionCount}
+                  included={r.included}
+                  onToggle={() => toggle(r.id)}
+                  onCycleDifficulty={() => cycle(r.id)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
