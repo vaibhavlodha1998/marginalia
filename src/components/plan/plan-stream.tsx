@@ -6,6 +6,7 @@ import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { planSchema } from "@/lib/schemas/plan";
 import { savePlan, generatePlan } from "@/app/actions/plan";
 import { DifficultyPill } from "@/components/ui/difficulty-pill";
+import { RichText } from "@/components/ui/rich-text";
 import { PlanThinking } from "./plan-thinking";
 
 export function PlanStream({ lessonId }: { lessonId: string }) {
@@ -61,9 +62,12 @@ export function PlanStream({ lessonId }: { lessonId: string }) {
                   key={j}
                   className="flex items-center gap-4 rounded-[12px] border border-border bg-surface px-[18px] py-4 [animation:mg-fade-up_.3s_ease]"
                 >
-                  <div className="min-w-0 flex-1 font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink">
+                  <RichText
+                    inline
+                    className="min-w-0 flex-1 font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink"
+                  >
                     {o?.title ?? "…"}
-                  </div>
+                  </RichText>
                   {o?.difficulty && <DifficultyPill difficulty={o.difficulty} />}
                 </div>
               ))}

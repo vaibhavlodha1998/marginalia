@@ -116,3 +116,45 @@ body {
 .mg-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.mg-rich p {
+  margin: 0 0 0.6em;
+}
+.mg-rich p:last-child {
+  margin-bottom: 0;
+}
+.mg-rich strong {
+  font-weight: 600;
+}
+.mg-rich em {
+  font-style: italic;
+}
+.mg-rich code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--color-surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.mg-rich ul,
+.mg-rich ol {
+  margin: 0.4em 0;
+  padding-left: 1.25em;
+}
+.mg-rich ul {
+  list-style: disc;
+}
+.mg-rich ol {
+  list-style: decimal;
+}
+.mg-rich li {
+  margin: 0.2em 0;
+}
+.mg-rich .katex {
+  font-size: 1.04em;
+}
+.mg-rich .katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}

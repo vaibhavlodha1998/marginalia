@@ -10,10 +10,12 @@ import {
 } from "@/app/actions/quiz";
 import { DifficultyPill } from "@/components/ui/difficulty-pill";
 import { ThinkingDots } from "@/components/ui/thinking-dots";
+import { RichText } from "@/components/ui/rich-text";
 import { McqCard } from "./mcq-card";
 import type { Difficulty, GradeResult, McqPublic } from "@/types/lesson";
 
 type Phase = "loading" | "generating" | "ready" | "completing" | "error";
+type Answer = { selected: number | null; result: GradeResult | null };
 
 export function QuizRunner({
   objectiveId,
@@ -32,9 +34,8 @@ export function QuizRunner({
   const started = useRef(false);
   const [phase, setPhase] = useState<Phase>("loading");
   const [mcqs, setMcqs] = useState<McqPublic[]>([]);
+  const [answers, setAnswers] = useState<Answer[]>([]);
   const [qIndex, setQIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [result, setResult] = useState<GradeResult | null>(null);
   const [grading, setGrading] = useState(false);
 
   useEffect(() => {
@@ -48,40 +49,43 @@ export function QuizRunner({
           await generateObjectiveMcqs(objectiveId);
           list = await getObjectiveMcqs(objectiveId);
         }
-        if (!list.length) setPhase("error");
-        else {
-          setMcqs(list);
-          setPhase("ready");
+        if (!list.length) {
+          setPhase("error");
+          return;
         }
+        setMcqs(list);
+        setAnswers(list.map(() => ({ selected: null, result: null })));
+        setPhase("ready");
       } catch {
         setPhase("error");
       }
     })();
   }, [objectiveId]);
 
+  const current = answers[qIndex] ?? { selected: null, result: null };
+
+  function patch(update: Partial<Answer>) {
+    setAnswers((a) =>
+      a.map((x, i) => (i === qIndex ? { ...x, ...update } : x)),
+    );
+  }
+
   async function submit() {
-    if (selected === null) return;
+    if (current.selected === null) return;
     setGrading(true);
     try {
-      const res = await gradeMcq(mcqs[qIndex].id, selected);
-      setResult(res);
+      const res = await gradeMcq(mcqs[qIndex].id, current.selected);
+      patch({ result: res });
     } catch {
-      // leave selection so the user can retry
+      // keep selection so the user can retry
     } finally {
       setGrading(false);
     }
   }
 
-  function tryAgain() {
-    setSelected(null);
-    setResult(null);
-  }
-
   async function next() {
     if (qIndex + 1 < mcqs.length) {
       setQIndex(qIndex + 1);
-      setSelected(null);
-      setResult(null);
       return;
     }
     setPhase("completing");
@@ -89,17 +93,19 @@ export function QuizRunner({
     router.refresh();
   }
 
+  const answeredCount = answers.filter((a) => a.result?.correct).length;
+
   return (
-    <div className="mx-auto max-w-[680px] p-10 max-md:p-6">
+    <div className="mx-auto max-w-[860px] p-10 max-md:p-6">
       <div className="mb-2 flex items-center gap-3">
         <span className="font-serif text-[13px] tracking-[0.02em] text-ink-3">
           OBJECTIVE {objNum} OF {objTotal}
         </span>
         <DifficultyPill difficulty={difficulty} />
       </div>
-      <h2 className="mb-[22px] font-serif text-[23px] font-semibold tracking-[-0.01em] text-ink">
+      <RichText className="mb-[22px] font-serif text-[23px] font-semibold tracking-[-0.01em] text-ink">
         {title}
-      </h2>
+      </RichText>
 
       {phase === "ready" && mcqs.length > 0 && (
         <>
@@ -110,21 +116,23 @@ export function QuizRunner({
             <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-border-strong">
               <div
                 className="h-full bg-primary transition-[width]"
-                style={{ width: `${(qIndex / mcqs.length) * 100}%` }}
+                style={{ width: `${(answeredCount / mcqs.length) * 100}%` }}
               />
             </div>
           </div>
           <McqCard
             question={mcqs[qIndex].question}
             choices={mcqs[qIndex].choices}
-            selected={selected}
-            onSelect={setSelected}
-            result={result}
+            selected={current.selected}
+            onSelect={(i) => patch({ selected: i })}
+            result={current.result}
             grading={grading}
             isLast={qIndex + 1 === mcqs.length}
+            canPrevious={qIndex > 0}
             onSubmit={submit}
             onNext={next}
-            onTryAgain={tryAgain}
+            onTryAgain={() => patch({ selected: null, result: null })}
+            onPrevious={() => setQIndex(Math.max(0, qIndex - 1))}
           />
         </>
       )}

@@ -10,4 +10,7 @@ Rules:
 - Cover the ENTIRE document end to end — including later sections such as
   methods, training, results, evaluation, and applications — not only the
   introduction and early architecture.
+- Write any mathematics in objective titles as LaTeX, inline as $...$
+  (e.g. $\\mathbb{R}^n$, $M_{m\\times n}$).
+- Objective titles are self-contained; do not reference "the text/document".
 - Only use what the document supports.`;

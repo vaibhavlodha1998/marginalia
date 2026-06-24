@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Spectral, Hanken_Grotesk } from "next/font/google";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 

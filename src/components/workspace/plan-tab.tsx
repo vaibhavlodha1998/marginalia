@@ -1,4 +1,5 @@
 import { DifficultyPill } from "@/components/ui/difficulty-pill";
+import { RichText } from "@/components/ui/rich-text";
 import type { WorkspaceObjective } from "./types";
 
 const MARK: Record<WorkspaceObjective["status"], string> = {
@@ -49,9 +50,12 @@ export function PlanTab({ objectives }: { objectives: WorkspaceObjective[] }) {
                     {MARK[o.status]}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink">
+                    <RichText
+                      inline
+                      className="font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink"
+                    >
                       {o.title}
-                    </div>
+                    </RichText>
                     <div className="mt-0.5 text-[12.5px] capitalize text-ink-3">
                       {o.status === "current" ? "In progress" : o.status}
                     </div>

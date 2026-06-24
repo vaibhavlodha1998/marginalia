@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
+import { RichText } from "@/components/ui/rich-text";
 import type { GradeResult } from "@/types/lesson";
 
 const LETTERS = ["A", "B", "C", "D"];
@@ -14,9 +15,11 @@ export function McqCard({
   result,
   grading,
   isLast,
+  canPrevious,
   onSubmit,
   onNext,
   onTryAgain,
+  onPrevious,
 }: {
   question: string;
   choices: string[];
@@ -25,15 +28,16 @@ export function McqCard({
   result: GradeResult | null;
   grading: boolean;
   isLast: boolean;
+  canPrevious: boolean;
   onSubmit: () => void;
   onNext: () => void;
   onTryAgain: () => void;
+  onPrevious: () => void;
 }) {
   const locked = result !== null;
 
   function optionStyle(i: number) {
-    if (result?.correct && i === selected)
-      return "border-correct bg-correct-bg";
+    if (result?.correct && i === selected) return "border-correct bg-correct-bg";
     if (result && !result.correct && i === selected)
       return "border-wrong bg-wrong-bg";
     if (i === selected) return "border-primary bg-primary/5";
@@ -41,12 +45,12 @@ export function McqCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-[30px] shadow-[0_4px_18px_rgba(44,39,34,0.04)]">
-      <div className="mb-[22px] font-serif text-[22px] font-semibold leading-[1.35] tracking-[-0.01em] text-ink">
+    <div className="rounded-2xl border border-border bg-surface p-8 shadow-[0_4px_18px_rgba(44,39,34,0.04)] max-md:p-6">
+      <RichText className="mb-6 font-serif text-[24px] font-semibold leading-[1.35] tracking-[-0.01em] text-ink">
         {question}
-      </div>
+      </RichText>
 
-      <div className="flex flex-col gap-[11px]">
+      <div className="flex flex-col gap-3">
         {choices.map((choice, i) => (
           <button
             key={i}
@@ -54,14 +58,14 @@ export function McqCard({
             disabled={locked || grading}
             onClick={() => onSelect(i)}
             className={cn(
-              "flex w-full items-center gap-3.5 rounded-[11px] border-[1.5px] px-4 py-3.5 text-left transition-colors",
+              "flex w-full items-center gap-4 rounded-[12px] border-[1.5px] px-[18px] py-4 text-left transition-colors",
               optionStyle(i),
               locked && "cursor-default",
             )}
           >
             <span
               className={cn(
-                "flex size-[26px] flex-none items-center justify-center rounded-full border-[1.5px] text-[12.5px] font-semibold",
+                "flex size-[28px] flex-none items-center justify-center rounded-full border-[1.5px] text-[13px] font-semibold",
                 i === selected
                   ? "border-transparent bg-primary text-on-primary"
                   : "border-border-muted text-ink-3",
@@ -71,61 +75,71 @@ export function McqCard({
             >
               {LETTERS[i]}
             </span>
-            <span className="flex-1 text-[15px] text-ink">{choice}</span>
+            <RichText inline className="flex-1 text-[15.5px] leading-[1.5] text-ink">
+              {choice}
+            </RichText>
           </button>
         ))}
       </div>
 
       {result?.correct && (
-        <>
-          <div className="mt-5 rounded-[12px] border border-correct-border bg-correct-bg p-[18px]">
-            <div className="mb-2 flex items-center gap-2 text-[13px] font-bold text-correct-ink">
-              <span className="flex size-[18px] items-center justify-center rounded-full bg-correct text-[11px] text-white">
-                ✓
-              </span>
-              That&apos;s right
-            </div>
-            <p className="text-[14.5px] leading-[1.6] text-ink">
-              {result.explanation}
-            </p>
+        <div className="mt-6 rounded-[14px] border border-correct-border bg-correct-bg p-5">
+          <div className="mb-2.5 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-correct-ink">
+            <span className="flex size-[18px] items-center justify-center rounded-full bg-correct text-[11px] text-white">
+              ✓
+            </span>
+            That&apos;s right
           </div>
-          <div className="mt-[18px] flex justify-end">
-            <Button onClick={onNext}>
-              {isLast ? "Finish objective" : "Next question"}
-            </Button>
-          </div>
-        </>
+          <RichText className="text-[16px] leading-[1.75] text-ink">
+            {result.explanation}
+          </RichText>
+        </div>
       )}
 
       {result && !result.correct && (
-        <>
-          <div className="mt-5 rounded-[12px] border border-wrong-border bg-wrong-bg p-[18px]">
-            <div className="mb-2 flex items-center gap-2 text-[13px] font-bold text-wrong-ink">
-              <span className="flex size-[18px] items-center justify-center rounded-full bg-wrong text-[12px] text-white">
-                !
-              </span>
-              Not yet — here&apos;s a nudge
-            </div>
-            <p className="text-[14.5px] leading-[1.6] text-ink">{result.hint}</p>
-          </div>
-          <div className="mt-[18px] flex items-center justify-between gap-3">
-            <span className="text-[13px] text-ink-3">
-              No penalty — take another run at it.
+        <div className="mt-6 rounded-[14px] border border-wrong-border bg-wrong-bg p-5">
+          <div className="mb-2.5 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-wrong-ink">
+            <span className="flex size-[18px] items-center justify-center rounded-full bg-wrong text-[12px] text-white">
+              !
             </span>
-            <Button variant="secondary" onClick={onTryAgain}>
-              Try again
-            </Button>
+            Not yet — here&apos;s a nudge
           </div>
-        </>
+          <RichText className="text-[16px] leading-[1.75] text-ink">
+            {result.hint}
+          </RichText>
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-[13px] text-ink-3">No penalty for retrying.</span>
+            <Button onClick={onTryAgain}>Try again</Button>
+          </div>
+        </div>
       )}
 
-      {!result && (
-        <div className="mt-[22px] flex justify-end">
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onPrevious}
+          disabled={!canPrevious}
+        >
+          ← Previous
+        </Button>
+
+        {!result && (
           <Button onClick={onSubmit} disabled={selected === null || grading}>
             {grading ? "Checking…" : "Submit answer"}
           </Button>
-        </div>
-      )}
+        )}
+        {result?.correct && (
+          <Button onClick={onNext}>
+            {isLast ? "Finish objective →" : "Next question →"}
+          </Button>
+        )}
+        {result && !result.correct && (
+          <span className="text-[13px] italic text-ink-3">
+            Use the hint above ↑
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cn";
+import { RichText } from "@/components/ui/rich-text";
 import type { Difficulty } from "@/types/lesson";
 
 const PILL: Record<Difficulty, string> = {
@@ -39,9 +40,12 @@ export function PlanObjectiveRow({
       </button>
 
       <div className={cn("min-w-0 flex-1", included ? "opacity-100" : "opacity-50")}>
-        <div className="font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink">
+        <RichText
+          inline
+          className="font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink"
+        >
           {title}
-        </div>
+        </RichText>
         <div className="mt-0.5 text-[12.5px] text-ink-3">
           {questionCount} questions
         </div>
