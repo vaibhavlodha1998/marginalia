@@ -1,6 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { UploadDropzone } from "@/components/upload/upload-dropzone";
 
-export default function NewLessonPage() {
+export default async function NewLessonPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/sign-in");
+
   return (
     <div className="flex flex-1 flex-col bg-paper">
       <header className="flex items-center gap-3.5 border-b border-border-strong px-11 py-[22px] max-md:px-6">
@@ -12,13 +21,8 @@ export default function NewLessonPage() {
           New lesson
         </span>
       </header>
-      <div className="flex flex-1 items-center justify-center p-10 text-center">
-        <div>
-          <div className="mb-3.5 text-[12.5px] font-semibold uppercase tracking-[0.06em] text-ink-3">
-            Step 1 of 3 · Upload
-          </div>
-          <p className="text-[15px] text-ink-2">PDF upload arrives in the next step.</p>
-        </div>
+      <div className="mg-scroll flex flex-1 items-center justify-center overflow-y-auto p-10">
+        <UploadDropzone userId={user.id} />
       </div>
     </div>
   );
