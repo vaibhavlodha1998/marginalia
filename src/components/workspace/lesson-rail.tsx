@@ -1,16 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import {
+  CircleHelp,
+  ClipboardList,
+  FileText,
+  ChartColumn,
+  type LucideIcon,
+} from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { RailTabButton } from "./rail-tab-button";
 import type { WorkspaceLesson, WorkspaceTab } from "./types";
 
-const TABS: { id: WorkspaceTab; label: string; dot: string }[] = [
-  { id: "quiz", label: "Quiz", dot: "bg-primary" },
-  { id: "plan", label: "Lesson plan", dot: "bg-medium" },
-  { id: "source", label: "Source PDF", dot: "bg-easy" },
-  { id: "progress", label: "Progress", dot: "bg-ink-3" },
+const TABS: { id: WorkspaceTab; label: string; icon: LucideIcon }[] = [
+  { id: "quiz", label: "Quiz", icon: CircleHelp },
+  { id: "plan", label: "Lesson plan", icon: ClipboardList },
+  { id: "source", label: "Source PDF", icon: FileText },
+  { id: "progress", label: "Progress", icon: ChartColumn },
 ];
 
 export function LessonRail({
@@ -51,8 +58,8 @@ export function LessonRail({
           <RailTabButton
             key={t.id}
             label={t.label}
+            icon={t.icon}
             active={active === t.id}
-            dotColor={t.dot}
             onClick={() => onTab(t.id)}
           />
         ))}

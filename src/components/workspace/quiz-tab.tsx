@@ -3,10 +3,15 @@ import type { WorkspaceObjective } from "./types";
 
 export function QuizTab({
   objectives,
+  selectedObjectiveId,
 }: {
   objectives: WorkspaceObjective[];
+  selectedObjectiveId?: string;
 }) {
-  const current = objectives.find((o) => o.status !== "done");
+  const selected = selectedObjectiveId
+    ? objectives.find((o) => o.id === selectedObjectiveId)
+    : undefined;
+  const current = selected ?? objectives.find((o) => o.status !== "done");
   const currentIdx = current ? objectives.indexOf(current) : -1;
   const index = currentIdx >= 0 ? currentIdx + 1 : objectives.length;
   const next = currentIdx >= 0 ? objectives[currentIdx + 1] : undefined;

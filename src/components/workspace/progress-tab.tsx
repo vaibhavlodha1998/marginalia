@@ -1,3 +1,4 @@
+import { RichText } from "@/components/ui/rich-text";
 import type { ProgressMap, WorkspaceObjective } from "./types";
 
 export function ProgressTab({
@@ -51,9 +52,12 @@ export function ProgressTab({
               className="rounded-[12px] border border-border bg-surface px-[18px] py-4"
             >
               <div className="mb-2.5 flex items-center justify-between">
-                <span className="font-serif text-[16px] font-semibold text-ink">
+                <RichText
+                  inline
+                  className="font-serif text-[16px] font-semibold text-ink"
+                >
                   {o.title}
-                </span>
+                </RichText>
                 <span className="text-[12.5px] font-semibold text-ink-2">
                   {p.correct}/{planned}
                 </span>

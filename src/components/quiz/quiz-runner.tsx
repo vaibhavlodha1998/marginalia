@@ -11,6 +11,7 @@ import {
 import { DifficultyPill } from "@/components/ui/difficulty-pill";
 import { ThinkingDots } from "@/components/ui/thinking-dots";
 import { RichText } from "@/components/ui/rich-text";
+import { useQuizStore } from "@/lib/store/quiz-store";
 import { McqCard } from "./mcq-card";
 import type { Difficulty, GradeResult, McqPublic } from "@/types/lesson";
 
@@ -33,6 +34,7 @@ export function QuizRunner({
   objTotal: number;
 }) {
   const router = useRouter();
+  const setActiveQuestion = useQuizStore((s) => s.setActive);
   const started = useRef(false);
   const [phase, setPhase] = useState<Phase>("loading");
   const [mcqs, setMcqs] = useState<McqPublic[]>([]);
@@ -67,6 +69,17 @@ export function QuizRunner({
       }
     })();
   }, [objectiveId, nextObjectiveId]);
+
+  // Publish the current question so the tutor chat can scope to it.
+  useEffect(() => {
+    const m = mcqs[qIndex];
+    setActiveQuestion(
+      m
+        ? { mcqId: m.id, question: m.question, choices: m.choices, objectiveTitle: title }
+        : null,
+    );
+    return () => setActiveQuestion(null);
+  }, [mcqs, qIndex, title, setActiveQuestion]);
 
   const current = answers[qIndex] ?? { selected: null, result: null };
 

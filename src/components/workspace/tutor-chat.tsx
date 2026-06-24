@@ -1,16 +1,87 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { useQuizStore } from "@/lib/store/quiz-store";
+import { RichText } from "@/components/ui/rich-text";
+import { ThinkingDots } from "@/components/ui/thinking-dots";
+
+type Msg = { role: "user" | "assistant"; content: string };
 
 const SUGGESTED = ["Hint, please", "Explain simply"];
 
 export function TutorChat({
+  lessonId,
   open,
   onToggle,
 }: {
+  lessonId: string;
   open: boolean;
   onToggle: () => void;
 }) {
+  const active = useQuizStore((s) => s.active);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState("");
+  const [pending, setPending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Fresh thread per question (render-time reset, not an effect).
+  const [threadId, setThreadId] = useState(active?.mcqId);
+  if (active?.mcqId !== threadId) {
+    setThreadId(active?.mcqId);
+    setMessages([]);
+  }
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+  }, [messages]);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || pending || !active) return;
+    const history = [...messages, { role: "user" as const, content: trimmed }];
+    setMessages([...history, { role: "assistant", content: "" }]);
+    setInput("");
+    setPending(true);
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: history,
+          question: active.question,
+          choices: active.choices,
+          objectiveTitle: active.objectiveTitle,
+        }),
+      });
+      if (!res.body) throw new Error("no stream");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setMessages((m) => {
+          const copy = [...m];
+          copy[copy.length - 1] = { role: "assistant", content: acc };
+          return copy;
+        });
+      }
+    } catch {
+      setMessages((m) => {
+        const copy = [...m];
+        copy[copy.length - 1] = {
+          role: "assistant",
+          content: "Sorry, I couldn't respond just now — try again.",
+        };
+        return copy;
+      });
+    } finally {
+      setPending(false);
+    }
+  }
+
   if (!open) {
     return (
       <button
@@ -23,6 +94,9 @@ export function TutorChat({
       </button>
     );
   }
+
+  const waiting =
+    pending && messages.length > 0 && messages[messages.length - 1].content === "";
 
   return (
     <aside className="flex w-[340px] flex-none flex-col border-l border-border-strong bg-surface-2 max-lg:w-[300px] max-md:fixed max-md:inset-0 max-md:z-40 max-md:w-full">
@@ -49,30 +123,78 @@ export function TutorChat({
         </button>
       </div>
 
-      <div className="mg-scroll flex flex-1 flex-col gap-3.5 overflow-y-auto p-[18px]">
+      <div
+        ref={scrollRef}
+        className="mg-scroll flex flex-1 flex-col gap-3.5 overflow-y-auto p-[18px]"
+      >
         <div className="max-w-[86%] self-start rounded-[14px_14px_14px_4px] border border-border bg-surface px-3.5 py-[11px] text-[13.5px] leading-[1.55] text-ink">
-          Hi! I&apos;m your tutor. Once the quiz begins, ask me for a hint or to
-          explain anything — I&apos;ll never give the answer away.
+          {active
+            ? "Ask me for a hint or to explain anything about this question — I'll never give the answer away."
+            : "Open a question in the Quiz tab and I'll help you think it through."}
         </div>
+
+        {messages.map((m, i) =>
+          m.role === "user" ? (
+            <div
+              key={i}
+              className="max-w-[86%] self-end rounded-[14px_14px_4px_14px] bg-primary px-3.5 py-[11px] text-[13.5px] leading-[1.55] text-on-primary"
+            >
+              {m.content}
+            </div>
+          ) : (
+            m.content && (
+              <RichText
+                key={i}
+                className="max-w-[86%] self-start rounded-[14px_14px_14px_4px] border border-border bg-surface px-3.5 py-[11px] text-[13.5px] leading-[1.55] text-ink"
+              >
+                {m.content}
+              </RichText>
+            )
+          ),
+        )}
+
+        {waiting && (
+          <div className="self-start rounded-[14px_14px_14px_4px] border border-border bg-surface px-3.5 py-3">
+            <ThinkingDots dotClassName="!bg-ink-3" />
+          </div>
+        )}
       </div>
 
       <div className="border-t border-border-strong px-4 pb-4 pt-3">
         <div className="mb-2.5 flex gap-2">
           {SUGGESTED.map((s) => (
-            <span
+            <button
               key={s}
-              className="rounded-2xl border border-[#d7dcec] bg-[#eceef6] px-3 py-1.5 text-[12px] text-primary"
+              type="button"
+              disabled={!active || pending}
+              onClick={() => send(s)}
+              className="rounded-2xl border border-[#d7dcec] bg-[#eceef6] px-3 py-1.5 text-[12px] text-primary disabled:opacity-50"
             >
               {s}
-            </span>
+            </button>
           ))}
         </div>
         <div className="flex items-end gap-2 rounded-[12px] border border-border bg-surface py-2 pl-3 pr-2">
           <input
-            disabled
-            placeholder="Tutor chat arrives in the next step…"
-            className="flex-1 bg-transparent py-1 text-[13.5px] text-ink outline-none placeholder:text-ink-3"
+            value={input}
+            disabled={!active || pending}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") send(input);
+            }}
+            placeholder={
+              active ? "Ask for a hint or an explanation…" : "Open a question first…"
+            }
+            className="flex-1 bg-transparent py-1 text-[13.5px] text-ink outline-none placeholder:text-ink-3 disabled:opacity-60"
           />
+          <button
+            type="button"
+            disabled={!active || pending || !input.trim()}
+            onClick={() => send(input)}
+            className="flex size-8 flex-none items-center justify-center rounded-lg bg-primary text-[14px] font-semibold text-on-primary disabled:opacity-50"
+          >
+            ↑
+          </button>
         </div>
         <p className="mt-2 text-center text-[10.5px] text-ink-4">
           Your tutor gives hints and explanations — never the answer.

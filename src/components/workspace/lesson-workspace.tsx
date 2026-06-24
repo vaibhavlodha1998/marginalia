@@ -20,14 +20,22 @@ export function LessonWorkspace({
   objectives,
   progress,
   pages,
+  pdfUrl,
 }: {
   lesson: WorkspaceLesson;
   objectives: WorkspaceObjective[];
   progress: ProgressMap;
   pages: WorkspacePage[];
+  pdfUrl: string | null;
 }) {
   const [tab, setTab] = useState<WorkspaceTab>("quiz");
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedObjectiveId, setSelectedObjectiveId] = useState<string>();
+
+  function selectObjective(id: string) {
+    setSelectedObjectiveId(id);
+    setTab("quiz");
+  }
 
   // Total is the planned question count (known up front), not the number of
   // questions generated so far — generation is lazy.
@@ -52,9 +60,18 @@ export function LessonWorkspace({
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
         <div className="mg-scroll flex-1 overflow-y-auto">
-          {tab === "quiz" && <QuizTab objectives={objectives} />}
-          {tab === "plan" && <PlanTab objectives={objectives} />}
-          {tab === "source" && <SourceTab lesson={lesson} pages={pages} />}
+          {tab === "quiz" && (
+            <QuizTab
+              objectives={objectives}
+              selectedObjectiveId={selectedObjectiveId}
+            />
+          )}
+          {tab === "plan" && (
+            <PlanTab objectives={objectives} onSelect={selectObjective} />
+          )}
+          {tab === "source" && (
+            <SourceTab lesson={lesson} pages={pages} pdfUrl={pdfUrl} />
+          )}
           {tab === "progress" && (
             <ProgressTab
               objectives={objectives}
@@ -66,7 +83,11 @@ export function LessonWorkspace({
         </div>
       </main>
 
-      <TutorChat open={chatOpen} onToggle={() => setChatOpen((v) => !v)} />
+      <TutorChat
+        lessonId={lesson.id}
+        open={chatOpen}
+        onToggle={() => setChatOpen((v) => !v)}
+      />
     </div>
   );
 }

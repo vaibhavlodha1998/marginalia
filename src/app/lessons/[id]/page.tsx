@@ -17,10 +17,18 @@ export default async function LessonPage({
 
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("id, title, subject, source_filename, pages, status")
+    .select("id, title, subject, source_filename, source_pdf_path, pages, status")
     .eq("id", id)
     .single();
   if (!lesson) notFound();
+
+  let pdfUrl: string | null = null;
+  if (lesson.source_pdf_path) {
+    const { data: signed } = await supabase.storage
+      .from("pdfs")
+      .createSignedUrl(lesson.source_pdf_path, 3600);
+    pdfUrl = signed?.signedUrl ?? null;
+  }
   if (lesson.status === "parsing" || lesson.status === "plan_pending") {
     redirect(`/lessons/${id}/plan`);
   }
@@ -79,6 +87,7 @@ export default async function LessonPage({
       objectives={objectives}
       progress={progress}
       pages={pages}
+      pdfUrl={pdfUrl}
     />
   );
 }
