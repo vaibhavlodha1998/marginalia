@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { extractPdfText } from "@/lib/pdf/extract";
+import { buildLessonChunks } from "@/lib/rag/store";
 
 export async function ingestLesson(input: {
   path: string;
@@ -46,6 +47,15 @@ export async function ingestLesson(input: {
     }));
     const { error: pagesErr } = await supabase.from("pdf_pages").insert(rows);
     if (pagesErr) throw new Error(pagesErr.message);
+  }
+
+  // Best-effort: embed chunks for retrieval. A missing local Ollama must not
+  // break the upload — MCQ grounding falls back to raw text.
+  try {
+    const named = pages.map((text, i) => ({ pageNo: i + 1, text }));
+    await buildLessonChunks(supabase, lessonId, named);
+  } catch {
+    // skip embeddings
   }
 
   await supabase

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { serverEnv } from "@/lib/config/env";
 import { authorMcqs } from "@/lib/mcq/author";
 import { evaluateMcqs } from "@/lib/mcq/evaluate";
+import { embedOne, toVector } from "@/lib/rag/embed";
 import type { GradeResult, McqPublic } from "@/types/lesson";
 
 const SOURCE_CHARS = 30_000;
@@ -34,15 +35,35 @@ export async function generateObjectiveMcqs(
   // outlive the user's access token, so do the writes with the service role.
   const admin = createAdminClient();
 
-  const { data: pages } = await supabase
-    .from("pdf_pages")
-    .select("text")
-    .eq("lesson_id", obj.lesson_id)
-    .order("page_no");
-  const source = (pages ?? [])
-    .map((p) => p.text)
-    .join("\n\n")
-    .slice(0, SOURCE_CHARS);
+  // RAG: retrieve the chunks most relevant to this objective. Falls back to raw
+  // text if embeddings/chunks are unavailable.
+  let source = "";
+  try {
+    const queryVec = await embedOne(`${obj.title}\n${obj.section ?? ""}`);
+    const { data: matches } = await supabase.rpc("match_chunks", {
+      p_lesson_id: obj.lesson_id,
+      p_query: toVector(queryVec),
+      p_limit: 12,
+    });
+    if (matches && matches.length) {
+      source = (matches as { content: string }[])
+        .map((m) => m.content)
+        .join("\n\n");
+    }
+  } catch {
+    // fall back to raw text below
+  }
+  if (!source) {
+    const { data: pages } = await supabase
+      .from("pdf_pages")
+      .select("text")
+      .eq("lesson_id", obj.lesson_id)
+      .order("page_no");
+    source = (pages ?? [])
+      .map((p) => p.text)
+      .join("\n\n")
+      .slice(0, SOURCE_CHARS);
+  }
   const count = obj.planned_mcq_count ?? 3;
 
   let mcqs = await authorMcqs({
