@@ -22,6 +22,9 @@ Rules:
 - conceptRefs are the concept "ref" numbers this objective covers (may be empty).
 - questionCount is a small integer (2-4).
 - Order sections and objectives easiest/foundational first, hardest last.
+- Cover the ENTIRE document end to end — including later sections such as
+  methods, training, results, evaluation, and applications — not only the
+  introduction and early architecture.
 - Only use what the document supports.`;
 
 export async function generatePlan(lessonId: string): Promise<{ count: number }> {
@@ -93,7 +96,7 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     const text = (pages ?? [])
       .map((p) => p.text)
       .join("\n\n")
-      .slice(0, 20_000);
+      .slice(0, 60_000);
     prompt = `Document:\n\n${text}`;
   }
 
