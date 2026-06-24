@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { glmJson } from "@/lib/ollama/json";
@@ -154,6 +156,7 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     raw_output: plan,
   });
 
+  revalidatePath(`/lessons/${lessonId}/plan`);
   return { count: objectiveRows.length };
 }
 
@@ -181,4 +184,8 @@ export async function approvePlan(
     .from("lessons")
     .update({ status: "in_progress", plan_approved_at: new Date().toISOString() })
     .eq("id", lessonId);
+
+  revalidatePath("/");
+  revalidatePath(`/lessons/${lessonId}`);
+  redirect(`/lessons/${lessonId}`);
 }

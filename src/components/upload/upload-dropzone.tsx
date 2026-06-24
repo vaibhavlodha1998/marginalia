@@ -45,7 +45,6 @@ export function UploadDropzone({ userId }: { userId: string }) {
       const { lessonId } = await ingestLesson({ path, filename: file.name });
 
       router.replace(`/lessons/${lessonId}/plan`);
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed.");
       setStatus("idle");

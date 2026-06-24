@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { approvePlan } from "@/app/actions/plan";
 import { Button } from "@/components/ui/button";
 import { PlanObjectiveRow } from "./plan-objective-row";
@@ -29,7 +28,6 @@ export function PlanReview({
   lessonId: string;
   objectives: Objective[];
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [rows, setRows] = useState<Row[]>(
     objectives.map((o) => ({
@@ -71,8 +69,6 @@ export function PlanReview({
         lessonId,
         rows.map((r) => ({ id: r.id, difficulty: r.difficulty, included: r.included })),
       );
-      router.push(`/lessons/${lessonId}`);
-      router.refresh();
     });
   }
 
