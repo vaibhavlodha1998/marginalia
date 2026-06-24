@@ -15,6 +15,22 @@ export interface Lesson {
   createdAt: string;
 }
 
+/** Client-safe MCQ — never carries correctIndex / explanation / rationales. */
+export interface McqPublic {
+  id: string;
+  objectiveId: string;
+  question: string;
+  choices: [string, string, string, string];
+  orderIndex: number;
+}
+
+export interface GradeResult {
+  correct: boolean;
+  explanation: string | null;
+  choiceRationales: string[] | null;
+  hint: string | null;
+}
+
 export type Difficulty = "easy" | "medium" | "hard";
 export type ObjectiveStatus = "upcoming" | "current" | "done";
 
