@@ -20,6 +20,7 @@ export async function ingestLesson(input: {
     .insert({
       user_id: user.id,
       title,
+      source_filename: input.filename,
       source_pdf_path: input.path,
       status: "parsing",
     })

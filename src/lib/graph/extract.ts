@@ -1,4 +1,5 @@
 import { glmJson } from "@/lib/ollama/json";
+import { fastModel } from "@/lib/ollama/models";
 import { graphSchema, type ConceptGraph } from "@/lib/schemas/ontology";
 
 const SYSTEM = `You extract a concept knowledge graph from a document.
@@ -17,5 +18,7 @@ Rules:
   prerequisite relationships.`;
 
 export async function extractGraph(text: string): Promise<ConceptGraph | null> {
-  return glmJson(SYSTEM, `Document:\n\n${text}`, graphSchema);
+  return glmJson(SYSTEM, `Document:\n\n${text}`, graphSchema, {
+    model: fastModel(),
+  });
 }

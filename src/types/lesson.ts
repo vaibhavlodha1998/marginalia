@@ -8,6 +8,7 @@ export interface Lesson {
   id: string;
   title: string;
   subject: string | null;
+  sourceFilename: string | null;
   sourcePdfPath: string | null;
   pages: number | null;
   status: LessonStatus;

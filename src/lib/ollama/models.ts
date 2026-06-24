@@ -1,8 +1,6 @@
 import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { serverEnv } from "@/lib/config/env";
 
-// Ollama is OpenAI-compatible, so every model runs through the OpenAI client
-// with a custom baseURL + API key.
 function ollamaConfig() {
   const { OLLAMA_API_KEY, OLLAMA_BASE_URL } = serverEnv();
   return {
@@ -11,25 +9,30 @@ function ollamaConfig() {
   };
 }
 
-export function chatModel() {
-  return new ChatOpenAI({
-    model: serverEnv().LLM_MODEL,
-    temperature: 0,
-    ...ollamaConfig(),
-  });
+function chat(model: string) {
+  return new ChatOpenAI({ model, temperature: 0, ...ollamaConfig() });
 }
 
+// Heavy reasoning (planning, MCQ authoring, summary).
+export function reasoningModel() {
+  return chat(serverEnv().LLM_MODEL);
+}
+
+// Lighter/faster tasks (graph + title extraction, hints, quick classification).
+export function fastModel() {
+  return chat(serverEnv().FAST_MODEL);
+}
+
+// MCQ evaluation jury.
+export function evalModel() {
+  return chat(serverEnv().EVAL_MODEL);
+}
+
+// Vision — ingest-only figure extraction.
 export function visionModel() {
-  return new ChatOpenAI({
-    model: serverEnv().VISION_MODEL,
-    temperature: 0,
-    ...ollamaConfig(),
-  });
+  return chat(serverEnv().VISION_MODEL);
 }
 
 export function embeddings() {
-  return new OpenAIEmbeddings({
-    model: serverEnv().EMBED_MODEL,
-    ...ollamaConfig(),
-  });
+  return new OpenAIEmbeddings({ model: serverEnv().EMBED_MODEL, ...ollamaConfig() });
 }

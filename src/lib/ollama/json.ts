@@ -1,6 +1,7 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import type { ChatOpenAI } from "@langchain/openai";
 import { z, type ZodTypeAny } from "zod";
-import { chatModel } from "./models";
+import { reasoningModel } from "./models";
 
 function extractJson(text: string): unknown {
   const fenced = text.replace(/```json\s*|\s*```/g, "");
@@ -24,9 +25,10 @@ export async function glmJson<S extends ZodTypeAny>(
   system: string,
   user: string,
   schema: S,
-  retries = 1,
+  opts?: { model?: ChatOpenAI; retries?: number },
 ): Promise<z.infer<S> | null> {
-  const model = chatModel();
+  const model = opts?.model ?? reasoningModel();
+  const retries = opts?.retries ?? 1;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await model.invoke([
