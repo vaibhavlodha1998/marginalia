@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <body style="margin:0; padding:0; background:#ece4d6;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ece4d6;">
+      <tr>
+        <td align="center" style="padding:40px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%;">
+
+            <!-- Brand -->
+            <tr>
+              <td style="padding:0 8px 22px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="width:30px; height:30px; background:#41507e; border-radius:8px; text-align:center; vertical-align:middle; color:#f4eee3; font-family:Georgia, 'Times New Roman', serif; font-weight:bold; font-size:18px;">M</td>
+                    <td style="padding-left:10px; font-family:Georgia, 'Times New Roman', serif; font-size:20px; font-weight:bold; color:#2c2722;">Marginalia</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Card -->
+            <tr>
+              <td style="background:#fbf8f2; border:1px solid #e6dccb; border-radius:16px; padding:36px 36px 32px;">
+                <h1 style="margin:0 0 10px; font-family:Georgia, 'Times New Roman', serif; font-size:24px; font-weight:bold; letter-spacing:-0.01em; color:#2c2722;">Your sign-in code</h1>
+                <p style="margin:0 0 26px; font-family:'Hanken Grotesk', Arial, sans-serif; font-size:15px; line-height:1.6; color:#6f665a;">Enter this code in Marginalia to continue. It expires shortly and can only be used once.</p>
+
+                <!-- Code -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" style="background:#eceef6; border:1px solid #d7dcec; border-radius:12px; padding:22px 16px;">
+                      <div style="font-family:'Courier New', Courier, monospace; font-size:38px; font-weight:bold; letter-spacing:10px; color:#41507e; line-height:1;">{{ .Token }}</div>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Link fallback -->
+                <p style="margin:26px 0 14px; font-family:'Hanken Grotesk', Arial, sans-serif; font-size:14px; line-height:1.6; color:#6f665a;">Or sign in with one tap:</p>
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="background:#41507e; border-radius:10px;">
+                      <a href="{{ .ConfirmationURL }}" style="display:inline-block; padding:13px 26px; font-family:'Hanken Grotesk', Arial, sans-serif; font-size:15px; font-weight:bold; color:#f4eee3; text-decoration:none;">Sign in to Marginalia</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:28px 0 0; font-family:'Hanken Grotesk', Arial, sans-serif; font-size:12.5px; line-height:1.6; color:#9b9081;">If you didn't request this, you can safely ignore this email — no one can sign in without the code above.</p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:22px 8px 0; text-align:center; font-family:'Hanken Grotesk', Arial, sans-serif; font-size:12px; line-height:1.6; color:#b3a994;">
+                Marginalia — turn any PDF into a lesson worth finishing.<br />
+                We never train on your documents.
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
