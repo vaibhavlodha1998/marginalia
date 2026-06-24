@@ -9,8 +9,10 @@ declare global {
 
 export function getPool(): Pool {
   if (!global.__pgPool) {
+    const url = serverEnv().DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL is not set");
     global.__pgPool = new Pool({
-      connectionString: serverEnv().DATABASE_URL,
+      connectionString: url,
       max: 5,
     });
   }

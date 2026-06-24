@@ -4,13 +4,18 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ingestLesson } from "@/app/actions/upload";
+import { buildConceptGraph } from "@/app/actions/graph";
+import { UploadStep } from "./upload-step";
 
 const MAX_BYTES = 40 * 1024 * 1024;
+
+type Phase = "uploading" | "parsing" | "concepts";
 
 export function UploadDropzone({ userId }: { userId: string }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<"idle" | "reading">("idle");
+  const [phase, setPhase] = useState<Phase>("uploading");
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +32,7 @@ export function UploadDropzone({ userId }: { userId: string }) {
     }
 
     setFileName(file.name);
+    setPhase("uploading");
     setStatus("reading");
     try {
       const supabase = createClient();
@@ -36,7 +42,12 @@ export function UploadDropzone({ userId }: { userId: string }) {
         .upload(path, file, { contentType: "application/pdf" });
       if (upErr) throw upErr;
 
-      await ingestLesson({ path, filename: file.name });
+      setPhase("parsing");
+      const { lessonId } = await ingestLesson({ path, filename: file.name });
+
+      setPhase("concepts");
+      await buildConceptGraph(lessonId);
+
       router.push("/");
       router.refresh();
     } catch (e) {
@@ -61,18 +72,17 @@ export function UploadDropzone({ userId }: { userId: string }) {
             </div>
             <span className="size-[22px] shrink-0 rounded-full border-[2.5px] border-border-muted border-t-primary [animation:mg-spin_.8s_linear_infinite]" />
           </div>
-          <div className="flex flex-col gap-3.5 text-[14px] text-ink">
-            <div className="flex items-center gap-2.5">
-              <span className="text-easy">✓</span>Uploading your document
-            </div>
-            <div className="flex items-center gap-2.5 text-ink-2">
-              <span className="inline-flex gap-[3px]">
-                <span className="size-[5px] rounded-full bg-primary [animation:mg-blink_1.2s_infinite]" />
-                <span className="size-[5px] rounded-full bg-primary [animation:mg-blink_1.2s_infinite_.2s]" />
-                <span className="size-[5px] rounded-full bg-primary [animation:mg-blink_1.2s_infinite_.4s]" />
-              </span>
-              Extracting text from every page
-            </div>
+          <div className="flex flex-col gap-3.5 text-[14px]">
+            <UploadStep done label="Uploading your document" />
+            <UploadStep
+              done={phase === "concepts"}
+              active={phase === "parsing"}
+              label="Extracting text from every page"
+            />
+            <UploadStep
+              active={phase === "concepts"}
+              label="Identifying key concepts and structure"
+            />
           </div>
         </div>
         <p className="mt-[18px] text-center text-[13px] text-ink-3">

@@ -4,10 +4,14 @@ const serverSchema = z.object({
   LLM_MODEL: z.string().min(1).default("glm-5.2:cloud"),
   VISION_MODEL: z.string().min(1).default("qwen3-vl:235b-cloud"),
   EMBED_MODEL: z.string().min(1).default("embeddinggemma"),
+  EVAL_MODEL: z.string().min(1).default("glm-5.2:cloud"),
   OLLAMA_API_KEY: z.string().min(1),
   OLLAMA_BASE_URL: z.string().url().default("https://ollama.com"),
-  DATABASE_URL: z.string().min(1),
-  SUPABASE_SECRET_KEY: z.string().min(1),
+  // Required only by the agent runtime (checkpointer) / admin client; validated
+  // at the point of use so model + API features work without them.
+  DATABASE_URL: z.string().optional(),
+  DIRECT_URL: z.string().optional(),
+  SUPABASE_SECRET_KEY: z.string().optional(),
 });
 
 const publicSchema = z.object({
