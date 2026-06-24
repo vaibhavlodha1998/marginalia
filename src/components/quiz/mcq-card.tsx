@@ -15,6 +15,7 @@ export function McqCard({
   result,
   grading,
   isLast,
+  isReview,
   canPrevious,
   onSubmit,
   onNext,
@@ -28,6 +29,7 @@ export function McqCard({
   result: GradeResult | null;
   grading: boolean;
   isLast: boolean;
+  isReview: boolean;
   canPrevious: boolean;
   onSubmit: () => void;
   onNext: () => void;
@@ -35,6 +37,8 @@ export function McqCard({
   onPrevious: () => void;
 }) {
   const locked = result !== null;
+  const showNext = result !== null && (result.correct || isReview) && !isLast;
+  const showFinish = result?.correct === true && isLast && !isReview;
 
   function optionStyle(i: number) {
     if (result?.correct && i === selected) return "border-correct bg-correct-bg";
@@ -107,10 +111,14 @@ export function McqCard({
           <RichText className="text-[16px] leading-[1.75] text-ink">
             {result.hint}
           </RichText>
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <span className="text-[13px] text-ink-3">No penalty for retrying.</span>
-            <Button onClick={onTryAgain}>Try again</Button>
-          </div>
+          {!isReview && (
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <span className="text-[13px] text-ink-3">
+                No penalty for retrying.
+              </span>
+              <Button onClick={onTryAgain}>Try again</Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -129,12 +137,9 @@ export function McqCard({
             {grading ? "Checking…" : "Submit answer"}
           </Button>
         )}
-        {result?.correct && (
-          <Button onClick={onNext}>
-            {isLast ? "Finish objective →" : "Next question →"}
-          </Button>
-        )}
-        {result && !result.correct && (
+        {showNext && <Button onClick={onNext}>Next question →</Button>}
+        {showFinish && <Button onClick={onNext}>Finish objective →</Button>}
+        {result && !result.correct && !isReview && (
           <span className="text-[13px] italic text-ink-3">
             Use the hint above ↑
           </span>

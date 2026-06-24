@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getObjectiveMcqs,
+  getObjectiveReview,
   generateObjectiveMcqs,
   gradeMcq,
   completeObjective,
@@ -21,6 +21,7 @@ type Answer = { selected: number | null; result: GradeResult | null };
 export function QuizRunner({
   objectiveId,
   nextObjectiveId,
+  isReview,
   title,
   difficulty,
   objNum,
@@ -28,6 +29,7 @@ export function QuizRunner({
 }: {
   objectiveId: string;
   nextObjectiveId?: string;
+  isReview: boolean;
   title: string;
   difficulty: Difficulty;
   objNum: number;
@@ -47,18 +49,48 @@ export function QuizRunner({
     started.current = true;
     (async () => {
       try {
-        let list = await getObjectiveMcqs(objectiveId);
+        let list = await getObjectiveReview(objectiveId);
         if (!list.length) {
           setPhase("generating");
           await generateObjectiveMcqs(objectiveId);
-          list = await getObjectiveMcqs(objectiveId);
+          list = await getObjectiveReview(objectiveId);
         }
         if (!list.length) {
           setPhase("error");
           return;
         }
-        setMcqs(list);
-        setAnswers(list.map(() => ({ selected: null, result: null })));
+        setMcqs(
+          list.map((r) => ({
+            id: r.id,
+            objectiveId: r.objectiveId,
+            question: r.question,
+            choices: r.choices,
+            orderIndex: r.orderIndex,
+          })),
+        );
+        setAnswers(
+          list.map((r) =>
+            r.review
+              ? {
+                  selected: r.review.selectedIndex,
+                  result: {
+                    correct: r.review.correct,
+                    explanation: r.review.explanation,
+                    choiceRationales: r.review.choiceRationales,
+                    hint: r.review.hint,
+                  },
+                }
+              : { selected: null, result: null },
+          ),
+        );
+        const firstUnanswered = list.findIndex((r) => !r.review?.correct);
+        setQIndex(
+          isReview
+            ? 0
+            : firstUnanswered === -1
+              ? Math.max(0, list.length - 1)
+              : firstUnanswered,
+        );
         setPhase("ready");
         // Pre-generate the next objective in the background so advancing is seamless.
         if (nextObjectiveId) {
@@ -68,7 +100,7 @@ export function QuizRunner({
         setPhase("error");
       }
     })();
-  }, [objectiveId, nextObjectiveId]);
+  }, [objectiveId, nextObjectiveId, isReview]);
 
   // Publish the current question so the tutor chat can scope to it.
   useEffect(() => {
@@ -107,6 +139,7 @@ export function QuizRunner({
       setQIndex(qIndex + 1);
       return;
     }
+    if (isReview) return; // already-finished objective — don't re-complete
     setPhase("completing");
     await completeObjective(objectiveId);
     router.refresh();
@@ -147,6 +180,7 @@ export function QuizRunner({
             result={current.result}
             grading={grading}
             isLast={qIndex + 1 === mcqs.length}
+            isReview={isReview}
             canPrevious={qIndex > 0}
             onSubmit={submit}
             onNext={next}

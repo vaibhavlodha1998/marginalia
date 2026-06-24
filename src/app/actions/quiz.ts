@@ -7,7 +7,7 @@ import { serverEnv } from "@/lib/config/env";
 import { authorMcqs } from "@/lib/mcq/author";
 import { evaluateMcqs } from "@/lib/mcq/evaluate";
 import { embedOne, toVector } from "@/lib/rag/embed";
-import type { GradeResult, McqPublic } from "@/types/lesson";
+import type { GradeResult, McqPublic, ReviewMcq } from "@/types/lesson";
 
 const SOURCE_CHARS = 30_000;
 
@@ -166,6 +166,81 @@ export async function getObjectiveMcqs(
     choices: m.choices as [string, string, string, string],
     orderIndex: m.order_index,
   }));
+}
+
+export async function getObjectiveReview(
+  objectiveId: string,
+): Promise<ReviewMcq[]> {
+  const supabase = await createClient();
+
+  const { data: mcqs } = await supabase
+    .from("mcqs")
+    .select("id, objective_id, question, choices, order_index")
+    .eq("objective_id", objectiveId)
+    .order("order_index");
+  if (!mcqs || !mcqs.length) return [];
+
+  const ids = mcqs.map((m) => m.id);
+
+  // Latest attempt per MCQ for the current user.
+  const { data: attempts } = await supabase
+    .from("attempts")
+    .select("mcq_id, selected_index, correct, created_at")
+    .in("mcq_id", ids)
+    .order("created_at", { ascending: false });
+
+  const latest = new Map<
+    string,
+    { selected_index: number; correct: boolean }
+  >();
+  for (const a of attempts ?? []) {
+    if (!latest.has(a.mcq_id)) {
+      latest.set(a.mcq_id, { selected_index: a.selected_index, correct: a.correct });
+    }
+  }
+
+  // Feedback columns are revoked from client roles — read them with the service
+  // role, only for questions already answered.
+  const answeredIds = [...latest.keys()];
+  const feedback = new Map<
+    string,
+    { explanation: string; choice_rationales: string[] | null; hint: string }
+  >();
+  if (answeredIds.length) {
+    const admin = createAdminClient();
+    const { data: rows } = await admin
+      .from("mcqs")
+      .select("id, explanation, choice_rationales, hint")
+      .in("id", answeredIds);
+    for (const r of rows ?? []) {
+      feedback.set(r.id, {
+        explanation: r.explanation,
+        choice_rationales: r.choice_rationales,
+        hint: r.hint,
+      });
+    }
+  }
+
+  return mcqs.map((m) => {
+    const a = latest.get(m.id);
+    const fb = feedback.get(m.id);
+    return {
+      id: m.id,
+      objectiveId: m.objective_id,
+      question: m.question,
+      choices: m.choices as [string, string, string, string],
+      orderIndex: m.order_index,
+      review: a
+        ? {
+            selectedIndex: a.selected_index,
+            correct: a.correct,
+            explanation: a.correct ? (fb?.explanation ?? null) : null,
+            choiceRationales: a.correct ? (fb?.choice_rationales ?? null) : null,
+            hint: !a.correct ? (fb?.hint ?? null) : null,
+          }
+        : null,
+    };
+  });
 }
 
 export async function gradeMcq(

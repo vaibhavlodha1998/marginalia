@@ -39,6 +39,7 @@ export function QuizTab({
       key={current.id}
       objectiveId={current.id}
       nextObjectiveId={next?.id}
+      isReview={current.status === "done"}
       title={current.title}
       difficulty={current.difficulty}
       objNum={index}

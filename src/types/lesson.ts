@@ -31,6 +31,18 @@ export interface GradeResult {
   hint: string | null;
 }
 
+export interface ReviewAnswer {
+  selectedIndex: number;
+  correct: boolean;
+  explanation: string | null;
+  choiceRationales: string[] | null;
+  hint: string | null;
+}
+
+export interface ReviewMcq extends McqPublic {
+  review: ReviewAnswer | null;
+}
+
 export type Difficulty = "easy" | "medium" | "hard";
 export type ObjectiveStatus = "upcoming" | "current" | "done";
 
