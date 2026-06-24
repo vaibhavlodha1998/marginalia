@@ -62,7 +62,10 @@ export function LessonWorkspace({
         <div className="mg-scroll flex-1 overflow-y-auto">
           {tab === "quiz" && (
             <QuizTab
+              lessonId={lesson.id}
+              lessonTitle={lesson.title}
               objectives={objectives}
+              progress={progress}
               selectedObjectiveId={selectedObjectiveId}
             />
           )}
