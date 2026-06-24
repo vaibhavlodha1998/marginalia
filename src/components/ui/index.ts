@@ -1,5 +1,6 @@
 export { Button } from "./button";
 export { Card } from "./card";
+export { Input } from "./input";
 export { DifficultyPill, type Difficulty } from "./difficulty-pill";
 export { ProgressBar } from "./progress-bar";
 export { Skeleton } from "./skeleton";
