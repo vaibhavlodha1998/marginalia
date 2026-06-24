@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Spectral, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const serif = Spectral({
+  variable: "--font-serif",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const sans = Hanken_Grotesk({
+  variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
@@ -26,9 +29,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${serif.variable} ${sans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col font-sans text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>
