@@ -6,28 +6,96 @@ import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { glmJson } from "@/lib/ollama/json";
 import { deriveLessonMeta } from "@/lib/llm/title";
-import { planSchema } from "@/lib/schemas/plan";
+import { planSchema, type Plan } from "@/lib/schemas/plan";
+import { PLAN_SYSTEM } from "@/lib/plan/prompt";
 import type { Difficulty } from "@/types/lesson";
 
-const SYSTEM = `You are a tutor planning a lesson from a document.
-Group focused learning objectives into a few named sections (modules/themes),
-ordered foundational to advanced using the prerequisite relationships.
+const SYSTEM = `${PLAN_SYSTEM}
+
 Return ONLY a JSON object, no prose, no code fences, of the form:
 { "sections": [
   { "title": "Section name", "objectives": [
     { "title": "...", "difficulty": "easy", "conceptRefs": ["1","2"], "questionCount": 3 }
   ] }
-] }
-Rules:
-- 2-5 sections, each grouping related objectives under a short topical heading.
-- difficulty is one of: easy, medium, hard.
-- conceptRefs are the concept "ref" numbers this objective covers (may be empty).
-- questionCount is a small integer (2-4).
-- Order sections and objectives easiest/foundational first, hardest last.
-- Cover the ENTIRE document end to end — including later sections such as
-  methods, training, results, evaluation, and applications — not only the
-  introduction and early architecture.
-- Only use what the document supports.`;
+] }`;
+
+async function setTitleFromDocument(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  lessonId: string,
+) {
+  const { data: pages } = await supabase
+    .from("pdf_pages")
+    .select("text")
+    .eq("lesson_id", lessonId)
+    .order("page_no")
+    .limit(3);
+  const text = (pages ?? [])
+    .map((p) => p.text)
+    .join("\n\n")
+    .slice(0, 4000);
+  const meta = text.trim() ? await deriveLessonMeta(text) : null;
+  if (meta) {
+    await supabase
+      .from("lessons")
+      .update({ title: meta.title, subject: meta.subject })
+      .eq("id", lessonId);
+  }
+}
+
+// Persist a streamed plan (from the AI SDK route), then move into the editable
+// review. Used by the streaming flow; generatePlan() is the non-streaming path.
+export async function savePlan(lessonId: string, plan: unknown): Promise<void> {
+  const supabase = await createClient();
+  const model = serverEnv().LLM_MODEL;
+
+  const { data: existing } = await supabase
+    .from("objectives")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .limit(1);
+  if (existing && existing.length) {
+    revalidatePath(`/lessons/${lessonId}/plan`);
+    return;
+  }
+
+  const parsed = planSchema.safeParse(plan);
+  if (!parsed.success) throw new Error("invalid streamed plan");
+
+  await setTitleFromDocument(supabase, lessonId);
+  await persistPlan(supabase, lessonId, parsed.data, model);
+  revalidatePath(`/lessons/${lessonId}/plan`);
+}
+
+async function persistPlan(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  lessonId: string,
+  plan: Plan,
+  model: string,
+) {
+  const flat = plan.sections.flatMap((s) =>
+    s.objectives.map((o) => ({ section: s.title, ...o })),
+  );
+  const rows = flat.map((o, i) => ({
+    lesson_id: lessonId,
+    title: o.title,
+    section: o.section,
+    difficulty: o.difficulty,
+    order_index: i,
+    status: "upcoming" as const,
+    included: true,
+    planned_mcq_count: o.questionCount,
+  }));
+  const { error } = await supabase.from("objectives").insert(rows);
+  if (error) throw new Error(error.message);
+
+  await supabase.from("generations").insert({
+    lesson_id: lessonId,
+    kind: "plan",
+    model,
+    status: "ok",
+    raw_output: plan,
+  });
+}
 
 export async function generatePlan(lessonId: string): Promise<{ count: number }> {
   const supabase = await createClient();
