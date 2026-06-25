@@ -7,52 +7,41 @@ export interface VettedMcq {
   verdict: AggregatedVerdict;
 }
 
-// Keep only questions every evaluator passes; re-author the shortfall with the
-// failures' issues as feedback, for a bounded number of rounds.
-const MAX_ROUNDS = 2;
+// Author one question and run it past the jury, up to a couple of rounds with
+// the failures' issues fed back. Returns the passing question, plus the
+// best-scoring attempt as a fallback so an objective is never empty.
+const ROUNDS = 2;
 
-export async function authorVettedMcqs(input: {
+export async function authorOneVetted(input: {
   objective: string;
   section: string;
   source: string;
-  count: number;
   figures?: { ref: number; caption: string; page: number | null }[];
-}): Promise<VettedMcq[]> {
-  const kept: VettedMcq[] = [];
-  let best: VettedMcq | null = null;
+  avoid: string[];
+}): Promise<{ vetted: VettedMcq | null; best: VettedMcq | null }> {
   let notes: string[] = [];
+  let best: VettedMcq | null = null;
 
-  for (let round = 0; round < MAX_ROUNDS && kept.length < input.count; round++) {
-    const need = input.count - kept.length;
+  for (let round = 0; round < ROUNDS; round++) {
     const batch = await authorMcqs({
       objective: input.objective,
       section: input.section,
       source: input.source,
-      count: need,
+      count: 1,
       figures: input.figures,
       notes: round === 0 ? undefined : notes,
-      avoid: kept.map((k) => k.mcq.question),
+      avoid: input.avoid,
     });
-    if (!batch || !batch.length) break;
+    if (!batch || !batch.length) continue;
 
-    const verdicts = await evaluateMcqs(input.objective, input.source, batch);
-    const roundIssues: string[] = [];
-    batch.forEach((mcq, i) => {
-      const verdict = verdicts[i];
-      if (!verdict) return;
-      if (verdict.passed) {
-        kept.push({ mcq, verdict });
-      } else {
-        for (const e of verdict.evaluations) {
-          if (!e.passed) roundIssues.push(...e.issues);
-        }
-        if (!best || verdict.score > best.verdict.score) best = { mcq, verdict };
-      }
-    });
-    notes = [...new Set(roundIssues)].slice(0, 8);
+    const [verdict] = await evaluateMcqs(input.objective, input.source, batch);
+    const mcq = batch[0];
+    if (!verdict) continue;
+    if (verdict.passed) return { vetted: { mcq, verdict }, best };
+    if (!best || verdict.score > best.verdict.score) best = { mcq, verdict };
+    notes = [
+      ...new Set(verdict.evaluations.flatMap((e) => (e.passed ? [] : e.issues))),
+    ].slice(0, 8);
   }
-
-  // Never leave an objective empty: fall back to the best-scoring question.
-  if (!kept.length && best) return [best];
-  return kept.slice(0, input.count);
+  return { vetted: null, best };
 }

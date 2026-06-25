@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/ui/rich-text";
+import { ThinkingDots } from "@/components/ui/thinking-dots";
 import { QuizFigure } from "./quiz-figure";
 import type { GradeResult } from "@/types/lesson";
 
@@ -18,6 +19,7 @@ export function McqCard({
   result,
   grading,
   isLast,
+  awaitingNext = false,
   isReview,
   canPrevious,
   onSubmit,
@@ -34,6 +36,7 @@ export function McqCard({
   result: GradeResult | null;
   grading: boolean;
   isLast: boolean;
+  awaitingNext?: boolean;
   isReview: boolean;
   canPrevious: boolean;
   onSubmit: () => void;
@@ -42,8 +45,10 @@ export function McqCard({
   onPrevious: () => void;
 }) {
   const locked = result !== null;
-  const showNext = result !== null && (result.correct || isReview) && !isLast;
+  const showNext =
+    result !== null && (result.correct || isReview) && !isLast && !awaitingNext;
   const showFinish = result?.correct === true && isLast && !isReview;
+  const showAwaiting = awaitingNext && (result?.correct === true || isReview);
 
   function optionStyle(i: number) {
     if (result?.correct && i === selected) return "border-correct bg-correct-bg";
@@ -151,6 +156,11 @@ export function McqCard({
         )}
         {showNext && <Button onClick={onNext}>Next question →</Button>}
         {showFinish && <Button onClick={onNext}>Finish objective →</Button>}
+        {showAwaiting && (
+          <span className="flex items-center gap-2 text-[13px] text-ink-3">
+            <ThinkingDots /> Writing the next question…
+          </span>
+        )}
         {result && !result.correct && !isReview && (
           <span className="text-[13px] italic text-ink-3">
             Use the hint above ↑

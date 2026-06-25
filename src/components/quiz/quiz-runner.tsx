@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getObjectiveReview,
+  getObjectiveGenStatus,
   generateObjectiveMcqs,
   gradeMcq,
   completeObjective,
@@ -13,10 +14,36 @@ import { ThinkingDots } from "@/components/ui/thinking-dots";
 import { RichText } from "@/components/ui/rich-text";
 import { useQuizStore } from "@/lib/store/quiz-store";
 import { McqCard } from "./mcq-card";
-import type { Difficulty, GradeResult, McqPublic } from "@/types/lesson";
+import type { Difficulty, GradeResult, McqPublic, ReviewMcq } from "@/types/lesson";
 
 type Phase = "loading" | "generating" | "ready" | "completing" | "error";
 type Answer = { selected: number | null; result: GradeResult | null };
+
+function toPublic(r: ReviewMcq): McqPublic {
+  return {
+    id: r.id,
+    objectiveId: r.objectiveId,
+    question: r.question,
+    choices: r.choices,
+    orderIndex: r.orderIndex,
+    figureUrl: r.figureUrl,
+    figurePlacement: r.figurePlacement,
+  };
+}
+
+function toAnswer(r: ReviewMcq): Answer {
+  return r.review
+    ? {
+        selected: r.review.selectedIndex,
+        result: {
+          correct: r.review.correct,
+          explanation: r.review.explanation,
+          choiceRationales: r.review.choiceRationales,
+          hint: r.review.hint,
+        },
+      }
+    : { selected: null, result: null };
+}
 
 export function QuizRunner({
   objectiveId,
@@ -38,53 +65,31 @@ export function QuizRunner({
   const router = useRouter();
   const setActiveQuestion = useQuizStore((s) => s.setActive);
   const started = useRef(false);
+  const initialized = useRef(false);
   const [phase, setPhase] = useState<Phase>("loading");
   const [mcqs, setMcqs] = useState<McqPublic[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [qIndex, setQIndex] = useState(0);
   const [grading, setGrading] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    (async () => {
-      try {
-        let list = await getObjectiveReview(objectiveId);
-        if (!list.length) {
-          setPhase("generating");
-          await generateObjectiveMcqs(objectiveId);
-          list = await getObjectiveReview(objectiveId);
-        }
-        if (!list.length) {
-          setPhase("error");
-          return;
-        }
-        setMcqs(
-          list.map((r) => ({
-            id: r.id,
-            objectiveId: r.objectiveId,
-            question: r.question,
-            choices: r.choices,
-            orderIndex: r.orderIndex,
-            figureUrl: r.figureUrl,
-            figurePlacement: r.figurePlacement,
-          })),
-        );
-        setAnswers(
-          list.map((r) =>
-            r.review
-              ? {
-                  selected: r.review.selectedIndex,
-                  result: {
-                    correct: r.review.correct,
-                    explanation: r.review.explanation,
-                    choiceRationales: r.review.choiceRationales,
-                    hint: r.review.hint,
-                  },
-                }
-              : { selected: null, result: null },
-          ),
-        );
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    // Merge newly generated questions in without disturbing answered ones.
+    const apply = (list: ReviewMcq[]) => {
+      setMcqs((prev) => (list.length > prev.length ? list.map(toPublic) : prev));
+      setAnswers((prev) => {
+        if (list.length <= prev.length) return prev;
+        const next = [...prev];
+        for (let i = prev.length; i < list.length; i++) next[i] = toAnswer(list[i]);
+        return next;
+      });
+      if (!initialized.current && list.length) {
+        initialized.current = true;
         const firstUnanswered = list.findIndex((r) => !r.review?.correct);
         setQIndex(
           isReview
@@ -93,15 +98,58 @@ export function QuizRunner({
               ? Math.max(0, list.length - 1)
               : firstUnanswered,
         );
-        setPhase("ready");
-        // Pre-generate the next objective in the background so advancing is seamless.
+      }
+    };
+
+    const poll = async () => {
+      if (cancelled) return;
+      const list = await getObjectiveReview(objectiveId);
+      apply(list);
+      if (list.length) setPhase("ready");
+      const { status } = await getObjectiveGenStatus(objectiveId);
+      if (status === "ready" || status === "error") {
+        setGenerating(false);
+        if (!list.length) setPhase("error");
+        return;
+      }
+      setGenerating(true);
+      timer = setTimeout(poll, 1500);
+    };
+
+    (async () => {
+      try {
+        const list = await getObjectiveReview(objectiveId);
+        apply(list);
+        const { status } = await getObjectiveGenStatus(objectiveId);
+
+        if (list.length && status === "ready") {
+          setPhase("ready");
+        } else {
+          if (status !== "generating") {
+            generateObjectiveMcqs(objectiveId).catch(() => {});
+          }
+          if (list.length) {
+            setPhase("ready");
+            setGenerating(true);
+          } else {
+            setPhase("generating");
+          }
+          timer = setTimeout(poll, 1500);
+        }
+
+        // Pre-generate the next objective so advancing is seamless.
         if (nextObjectiveId) {
           generateObjectiveMcqs(nextObjectiveId).catch(() => {});
         }
       } catch {
-        setPhase("error");
+        if (!cancelled) setPhase("error");
       }
     })();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [objectiveId, nextObjectiveId, isReview]);
 
   // Publish the current question so the tutor chat can scope to it.
@@ -125,9 +173,7 @@ export function QuizRunner({
   const current = answers[qIndex] ?? { selected: null, result: null };
 
   function patch(update: Partial<Answer>) {
-    setAnswers((a) =>
-      a.map((x, i) => (i === qIndex ? { ...x, ...update } : x)),
-    );
+    setAnswers((a) => a.map((x, i) => (i === qIndex ? { ...x, ...update } : x)));
   }
 
   async function submit() {
@@ -148,13 +194,15 @@ export function QuizRunner({
       setQIndex(qIndex + 1);
       return;
     }
-    if (isReview) return; // already-finished objective — don't re-complete
+    if (generating || isReview) return; // wait for more, or already finished
     setPhase("completing");
     await completeObjective(objectiveId);
     router.refresh();
   }
 
   const answeredCount = answers.filter((a) => a.result?.correct).length;
+  const isLastLoaded = qIndex + 1 === mcqs.length;
+  const awaitingNext = isLastLoaded && generating;
 
   return (
     <div className="mx-auto max-w-[860px] p-10 max-md:p-6">
@@ -180,6 +228,9 @@ export function QuizRunner({
                 style={{ width: `${(answeredCount / mcqs.length) * 100}%` }}
               />
             </div>
+            {generating && (
+              <span className="text-[11.5px] text-ink-3">Writing more…</span>
+            )}
           </div>
           <McqCard
             question={mcqs[qIndex].question}
@@ -190,7 +241,8 @@ export function QuizRunner({
             onSelect={(i) => patch({ selected: i })}
             result={current.result}
             grading={grading}
-            isLast={qIndex + 1 === mcqs.length}
+            isLast={isLastLoaded && !generating}
+            awaitingNext={awaitingNext}
             isReview={isReview}
             canPrevious={qIndex > 0}
             onSubmit={submit}
@@ -208,7 +260,7 @@ export function QuizRunner({
           <ThinkingDots className="mb-4 justify-center" />
           <div className="font-serif text-[18px] font-semibold text-ink-2">
             {phase === "generating"
-              ? "Writing and checking your questions…"
+              ? "Writing your first question…"
               : phase === "completing"
                 ? "Saving your progress…"
                 : "Loading…"}
@@ -216,7 +268,7 @@ export function QuizRunner({
           {phase === "generating" && (
             <p className="mx-auto mt-2 max-w-[380px] text-[13.5px] text-ink-3">
               Questions are authored from the source and reviewed by a panel
-              before you see them.
+              before you see them. The first appears in a few seconds.
             </p>
           )}
         </div>
