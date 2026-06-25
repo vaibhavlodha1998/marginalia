@@ -66,11 +66,24 @@ export async function generateObjectiveMcqs(
   }
   const count = obj.planned_mcq_count ?? 3;
 
+  const { data: figRows } = await supabase
+    .from("figures")
+    .select("id, caption, page")
+    .eq("lesson_id", obj.lesson_id)
+    .order("page");
+  const figures = (figRows ?? []).map((f, i) => ({
+    id: f.id as string,
+    ref: i + 1,
+    caption: (f.caption as string | null) ?? "figure",
+    page: f.page as number | null,
+  }));
+
   const mcqs = await authorMcqs({
     objective: obj.title,
     section: obj.section ?? "",
     source,
     count,
+    figures: figures.map(({ ref, caption, page }) => ({ ref, caption, page })),
   });
   if (!mcqs || !mcqs.length) {
     await admin.from("generations").insert({
@@ -88,6 +101,10 @@ export async function generateObjectiveMcqs(
 
   const rows = mcqs.map((m, i) => ({
     objective_id: objectiveId,
+    figure_id:
+      m.figureRef && figures[m.figureRef - 1]
+        ? figures[m.figureRef - 1].id
+        : null,
     question: m.question,
     choices: m.choices,
     correct_index: m.correctIndex,
@@ -148,16 +165,38 @@ export async function generateObjectiveMcqs(
   return { count: rows.length };
 }
 
+async function figureUrlMap(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  figureIds: (string | null)[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = [...new Set(figureIds.filter((x): x is string => !!x))];
+  if (!unique.length) return map;
+  const { data: figs } = await supabase
+    .from("figures")
+    .select("id, storage_path")
+    .in("id", unique);
+  for (const f of figs ?? []) {
+    const { data: signed } = await supabase.storage
+      .from("figures")
+      .createSignedUrl(f.storage_path, 3600);
+    if (signed?.signedUrl) map.set(f.id, signed.signedUrl);
+  }
+  return map;
+}
+
 export async function getObjectiveMcqs(
   objectiveId: string,
 ): Promise<McqPublic[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("mcqs")
-    .select("id, objective_id, question, choices, order_index")
+    .select("id, objective_id, question, choices, order_index, figure_id")
     .eq("objective_id", objectiveId)
     .order("order_index");
   if (error) throw new Error(error.message);
+
+  const urls = await figureUrlMap(supabase, (data ?? []).map((m) => m.figure_id));
 
   return (data ?? []).map((m) => ({
     id: m.id,
@@ -165,6 +204,7 @@ export async function getObjectiveMcqs(
     question: m.question,
     choices: m.choices as [string, string, string, string],
     orderIndex: m.order_index,
+    figureUrl: m.figure_id ? (urls.get(m.figure_id) ?? null) : null,
   }));
 }
 
@@ -175,12 +215,13 @@ export async function getObjectiveReview(
 
   const { data: mcqs } = await supabase
     .from("mcqs")
-    .select("id, objective_id, question, choices, order_index")
+    .select("id, objective_id, question, choices, order_index, figure_id")
     .eq("objective_id", objectiveId)
     .order("order_index");
   if (!mcqs || !mcqs.length) return [];
 
   const ids = mcqs.map((m) => m.id);
+  const urls = await figureUrlMap(supabase, mcqs.map((m) => m.figure_id));
 
   // Latest attempt per MCQ for the current user.
   const { data: attempts } = await supabase
@@ -230,6 +271,7 @@ export async function getObjectiveReview(
       question: m.question,
       choices: m.choices as [string, string, string, string],
       orderIndex: m.order_index,
+      figureUrl: m.figure_id ? (urls.get(m.figure_id) ?? null) : null,
       review: a
         ? {
             selectedIndex: a.selected_index,

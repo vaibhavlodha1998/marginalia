@@ -66,6 +66,7 @@ export function QuizRunner({
             question: r.question,
             choices: r.choices,
             orderIndex: r.orderIndex,
+            figureUrl: r.figureUrl,
           })),
         );
         setAnswers(
@@ -175,6 +176,7 @@ export function QuizRunner({
           <McqCard
             question={mcqs[qIndex].question}
             choices={mcqs[qIndex].choices}
+            figureUrl={mcqs[qIndex].figureUrl}
             selected={current.selected}
             onSelect={(i) => patch({ selected: i })}
             result={current.result}

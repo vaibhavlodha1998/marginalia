@@ -7,6 +7,7 @@ export const mcqSchema = z.object({
   explanation: z.string().min(1),
   choiceRationales: z.array(z.string()).length(4),
   hint: z.string().min(1),
+  figureRef: z.number().int().positive().nullable().optional(),
 });
 
 export const mcqSetSchema = z.object({

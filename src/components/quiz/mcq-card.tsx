@@ -10,6 +10,7 @@ const LETTERS = ["A", "B", "C", "D"];
 export function McqCard({
   question,
   choices,
+  figureUrl,
   selected,
   onSelect,
   result,
@@ -24,6 +25,7 @@ export function McqCard({
 }: {
   question: string;
   choices: string[];
+  figureUrl: string | null;
   selected: number | null;
   onSelect: (i: number) => void;
   result: GradeResult | null;
@@ -50,6 +52,16 @@ export function McqCard({
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-8 shadow-[0_4px_18px_rgba(44,39,34,0.04)] max-md:p-6">
+      {figureUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={figureUrl}
+          alt="Figure for this question"
+          className="mb-5 max-h-[340px] w-full rounded-[12px] border border-border bg-white object-contain p-2"
+          style={{ mixBlendMode: "multiply" }}
+        />
+      )}
+
       <RichText className="mb-6 font-serif text-[24px] font-semibold leading-[1.35] tracking-[-0.01em] text-ink">
         {question}
       </RichText>

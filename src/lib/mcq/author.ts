@@ -27,6 +27,9 @@ Each MCQ object:
   conceptually why it is right or wrong.
 - "hint": a nudge toward the idea that does NOT reveal or strongly imply the
   correct option.
+- "figureRef": if a provided figure is directly relevant to the question, set
+  this to that figure's number; otherwise null. At most one or two questions
+  should use a figure, and only when it genuinely helps.
 
 Return ONLY a JSON object, no prose, no code fences: { "mcqs": [ ... ] }`;
 
@@ -37,6 +40,7 @@ export async function authorMcqs(input: {
   count: number;
   notes?: string[];
   avoid?: string[];
+  figures?: { ref: number; caption: string; page: number | null }[];
 }): Promise<AuthoredMcq[] | null> {
   const revision = input.notes?.length
     ? `\n\nFix these issues from the previous attempt:\n- ${input.notes.join("\n- ")}`
@@ -44,10 +48,15 @@ export async function authorMcqs(input: {
   const avoid = input.avoid?.length
     ? `\n\nDo NOT repeat or closely paraphrase these existing questions:\n- ${input.avoid.join("\n- ")}`
     : "";
+  const figures = input.figures?.length
+    ? `\n\nAvailable figures (reference with figureRef only if directly relevant):\n${input.figures
+        .map((f) => `${f.ref}. [page ${f.page ?? "?"}] ${f.caption}`)
+        .join("\n")}`
+    : "";
   const user = `Objective: ${input.objective}
 Section: ${input.section}
 
-Write exactly ${input.count} questions for this objective.${revision}${avoid}
+Write exactly ${input.count} questions for this objective.${revision}${avoid}${figures}
 
 Source text:
 ${input.source}`;
