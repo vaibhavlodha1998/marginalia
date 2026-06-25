@@ -8,11 +8,27 @@ export const mcqSchema = z.object({
   choiceRationales: z.array(z.string()).length(4),
   hints: z.array(z.string().min(1)).min(2).max(4),
   figureRef: z.number().int().positive().nullable().optional(),
-  figurePlacement: z.enum(["question", "explanation"]).default("question"),
+  // The model sends null when there's no figure; coerce to "question" (default
+  // only fills undefined, not null).
+  figurePlacement: z.preprocess(
+    (v) => (v == null ? "question" : v),
+    z.enum(["question", "explanation"]),
+  ),
 });
 
+// Lenient: keep the questions that validate, so one malformed item doesn't
+// reject the whole batch.
 export const mcqSetSchema = z.object({
-  mcqs: z.array(mcqSchema).min(1),
+  mcqs: z.preprocess(
+    (arr) =>
+      Array.isArray(arr)
+        ? arr
+            .map((x) => mcqSchema.safeParse(x))
+            .filter((r) => r.success)
+            .map((r) => r.data)
+        : arr,
+    z.array(mcqSchema).min(1),
+  ),
 });
 
 export type AuthoredMcq = z.infer<typeof mcqSchema>;
