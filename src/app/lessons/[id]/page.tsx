@@ -34,12 +34,33 @@ export default async function LessonPage({
     redirect(`/lessons/${id}/plan`);
   }
 
-  const { data: objRows } = await supabase
-    .from("objectives")
-    .select("id, title, section, difficulty, order_index, status, included, planned_mcq_count")
-    .eq("lesson_id", id)
-    .eq("included", true)
-    .order("order_index");
+  const [
+    { data: objRows },
+    { data: progRows },
+    { data: pageRows },
+    { data: figRows },
+  ] = await Promise.all([
+    supabase
+      .from("objectives")
+      .select("id, title, section, difficulty, order_index, status, included, planned_mcq_count")
+      .eq("lesson_id", id)
+      .eq("included", true)
+      .order("order_index"),
+    supabase
+      .from("objective_progress")
+      .select("objective_id, total_mcqs, correct_mcqs, first_try_correct")
+      .eq("lesson_id", id),
+    supabase
+      .from("pdf_pages")
+      .select("page_no, text")
+      .eq("lesson_id", id)
+      .order("page_no"),
+    supabase
+      .from("figures")
+      .select("id, caption, alt_text, page, storage_path")
+      .eq("lesson_id", id)
+      .order("page"),
+  ]);
 
   const objectives: Objective[] = (objRows ?? []).map((o) => ({
     id: o.id,
@@ -52,11 +73,6 @@ export default async function LessonPage({
     plannedMcqCount: o.planned_mcq_count,
   }));
 
-  const { data: progRows } = await supabase
-    .from("objective_progress")
-    .select("objective_id, total_mcqs, correct_mcqs, first_try_correct")
-    .eq("lesson_id", id);
-
   const progress: ProgressMap = Object.fromEntries(
     (progRows ?? []).map((p) => [
       p.objective_id,
@@ -64,22 +80,10 @@ export default async function LessonPage({
     ]),
   );
 
-  const { data: pageRows } = await supabase
-    .from("pdf_pages")
-    .select("page_no, text")
-    .eq("lesson_id", id)
-    .order("page_no");
-
   const pages: WorkspacePage[] = (pageRows ?? []).map((p) => ({
     pageNo: p.page_no,
     text: p.text,
   }));
-
-  const { data: figRows } = await supabase
-    .from("figures")
-    .select("id, caption, alt_text, page, storage_path")
-    .eq("lesson_id", id)
-    .order("page");
 
   const signedFigures = await Promise.all(
     (figRows ?? []).map(async (f) => {
