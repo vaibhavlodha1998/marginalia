@@ -69,11 +69,13 @@ export async function generateObjectiveMcqs(
   try {
     return await runGeneration(supabase, admin, obj, model, objectiveId);
   } catch (e) {
+    // The lesson/objective may have been deleted mid-run; don't crash the caller.
+    logError("quiz.generate_mcqs", e);
     await admin
       .from("objectives")
       .update({ mcq_gen_status: "error" })
       .eq("id", objectiveId);
-    throw e;
+    return { count: 0 };
   }
 }
 
