@@ -219,9 +219,11 @@ async function runGeneration(
     raw_output: { mcqs, verdicts },
   });
 
+  // Reconcile the planned count to what actually passed the jury, so progress
+  // and per-objective totals match the questions the learner really sees.
   await admin
     .from("objectives")
-    .update({ mcq_gen_status: "ready" })
+    .update({ mcq_gen_status: "ready", planned_mcq_count: rows.length })
     .eq("id", objectiveId);
 
   revalidatePath(`/lessons/${obj.lesson_id}`);
