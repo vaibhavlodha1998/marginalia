@@ -15,7 +15,7 @@ const RUBRICS: Record<EvaluatorKind, string> = {
   unambiguous:
     "Check there is exactly one defensible answer and the wording is unambiguous. Fail if multiple options could be correct or the question is vague.",
   quality:
-    "Check the question is a clear, self-contained, non-trivial exam question on-topic for the objective, and the hint does NOT reveal the answer. Fail if it references 'the text/passage/author/document/preface' or 'according to ...', quotes the source verbatim, is trivial, off-topic, or the hint spoils the answer.",
+    "Check the question is a clear, self-contained, non-trivial exam question on-topic for the objective, and NONE of the hints reveal the answer. Fail if it references 'the text/passage/author/document/preface' or 'according to ...', quotes the source verbatim, is trivial, off-topic, or any hint spoils the answer.",
 };
 
 const SYSTEM = "You are a strict exam-question reviewer. Return ONLY JSON.";
