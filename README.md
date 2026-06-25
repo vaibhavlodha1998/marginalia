@@ -34,9 +34,10 @@ a progress report and personalized study tips.
 - **pdfjs-dist** (text + image extraction) + **sharp** (encode figure PNGs).
 - **Vercel AI SDK** for streaming (plan + tutor chat).
 
-> **Honest note:** `@copilotkit/*` and `deepagents` are in the dependency list
-> but **dormant** — the live flows use server actions + the Vercel AI SDK, which
-> proved more reliable with the Ollama models. See _Known limitations_.
+> **Architecture note:** the live flows use server actions plus the Vercel AI
+> SDK rather than an agent framework, which proved more reliable with the Ollama
+> models. The concept graph and per-user memory were prototyped then removed for
+> v1; see _Roadmap_.
 
 ## Prerequisites
 
@@ -161,12 +162,24 @@ See [`.env.example`](.env.example). Summary:
 - **Deploy:** embeddings require a **local** Ollama, which won't exist on Vercel.
   A cloud deploy needs a hosted embedding endpoint (or accept text-fallback
   grounding there).
-- **CopilotKit + Deep Agents are dormant** — the agent-style flows are server
-  actions + the Vercel AI SDK.
+- **No agent framework**: the agent-style flows are server actions plus the
+  Vercel AI SDK by choice, not CopilotKit or LangGraph.
 - **Figures**: extraction pulls embedded raster images (covers most paper
   figures); a pure-vector diagram with no embedded image may be missed.
-- **Generation pre-gen** has no distributed lock (a rare race if you race ahead);
-  production would move generation to a job queue.
+- **Generation runs in-request**: an atomic claim prevents duplicate authoring,
+  but long runs can still approach serverless time limits; a job queue is planned.
+
+## Roadmap (v2)
+
+- **Concept graph (ontology)**: extract a concept and prerequisite graph from the
+  document at ingest, then use it to order objectives and tighten question
+  grounding. Prototyped in v1, then removed to keep the schema lean.
+- **Per-user memory**: remember a learner's recurring misconceptions and
+  strengths across lessons, and feed them into the tutor and the study tips.
+- **Background generation**: move authoring and the jury to a job queue so slow
+  runs never approach serverless time limits.
+- **Hosted embeddings**: a cloud embedding endpoint so retrieval works on Vercel
+  without a local Ollama.
 
 ## Project structure
 
@@ -179,7 +192,7 @@ src/
   components/
     quiz/ plan/ workspace/ summary/ library/ auth/ ui/ providers/ upload/
   lib/
-    ollama/  ai/  rag/  mcq/  figures/  graph/  pdf/  llm/
+    ollama/  ai/  rag/  mcq/  figures/  pdf/  llm/
     supabase/  db/  schemas/  config/  store/  utils/
 supabase/migrations/    SQL schema, RLS, RPCs, storage
 scripts/                db migration runner

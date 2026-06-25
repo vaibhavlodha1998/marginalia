@@ -17,8 +17,9 @@ Figures are extracted from the PDF and shown in the Source tab + relevant MCQs.
 - **Server actions** drive data + generation (`src/app/actions/*`): upload, plan,
   quiz, summary, figures, auth, lessons. **Streaming** (plan + tutor chat) uses
   the **Vercel AI SDK** via routes under `src/app/api/lessons/[id]/`.
-- **CopilotKit + Deep Agents are installed but NOT used** — don't assume they're
-  wired. The chat is the AI SDK `streamText` route; the quiz is server actions.
+- **No agent framework.** The chat is the AI SDK `streamText` route; the quiz is
+  server actions. CopilotKit and Deep Agents were removed (see README Roadmap for
+  the concept graph and memory, which were also cut for v1).
 - **Models** (`src/lib/ollama/models.ts`): `reasoningModel()` = `LLM_MODEL`
   (glm-5.2, MCQ authoring), `fastModel()` = `FAST_MODEL` (deepseek-v4-flash,
   everything else), `evalModel()` (jury), `visionModel()` (figures, minimax-m3).
@@ -54,5 +55,6 @@ Figures are extracted from the PDF and shown in the Source tab + relevant MCQs.
 
 - After mutations, prefer server-side `revalidatePath` + `redirect` over client
   `router.refresh()` (dev Turbopack can stall soft-nav).
-- Migrations aren't idempotent (plain `create type/table`) — run on a fresh DB.
+- `yarn db:migrate` tracks applied files in `schema_migrations` and is append-only;
+  the early migrations aren't idempotent on their own.
 - Storage buckets `pdfs` / `figures` are private; serve via signed URLs.
