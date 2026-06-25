@@ -8,16 +8,14 @@ export const mcqSchema = z.object({
   choiceRationales: z.array(z.string()).length(4),
   hints: z.array(z.string().min(1)).min(2).max(4),
   figureRef: z.number().int().positive().nullable().optional(),
-  // The model sends null when there's no figure; coerce to "question" (default
-  // only fills undefined, not null).
+  // Coerce null (no figure) to "question"; default only fills undefined.
   figurePlacement: z.preprocess(
     (v) => (v == null ? "question" : v),
     z.enum(["question", "explanation"]),
   ),
 });
 
-// Lenient: keep the questions that validate, so one malformed item doesn't
-// reject the whole batch.
+// Keep questions that validate; one bad item won't reject the batch.
 export const mcqSetSchema = z.object({
   mcqs: z.preprocess(
     (arr) =>
