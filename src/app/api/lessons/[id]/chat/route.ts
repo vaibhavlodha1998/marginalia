@@ -81,6 +81,19 @@ export async function POST(
     }
   }
 
+  // Persist the new user turn.
+  const last = body.messages?.[body.messages.length - 1];
+  if (last?.role === "user" && typeof last.content === "string") {
+    await supabase.from("chat_messages").insert({
+      lesson_id: id,
+      user_id: user.id,
+      role: "user",
+      kind: "chat",
+      content: last.content,
+      mcq_id: body.mcqId ?? null,
+    });
+  }
+
   const options = choices.map((c, i) => `${LETTERS[i]}) ${c}`).join("\n");
 
   const system = `You are a warm, encouraging tutor helping a learner with ONE
@@ -110,6 +123,17 @@ Hard rules:
     temperature: 0,
     system,
     messages: body.messages ?? [],
+    onFinish: async ({ text }) => {
+      if (!text.trim()) return;
+      await supabase.from("chat_messages").insert({
+        lesson_id: id,
+        user_id: user.id,
+        role: "tutor",
+        kind: "chat",
+        content: text,
+        mcq_id: body.mcqId ?? null,
+      });
+    },
   });
 
   return result.toTextStreamResponse();

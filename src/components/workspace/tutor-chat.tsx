@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { useQuizStore } from "@/lib/store/quiz-store";
+import { getChatMessages } from "@/app/actions/chat";
 import { RichText } from "@/components/ui/rich-text";
 import { ThinkingDots } from "@/components/ui/thinking-dots";
 
@@ -31,6 +32,20 @@ export function TutorChat({
     setThreadId(active?.mcqId);
     setMessages([]);
   }
+
+  // Load any saved conversation for this question.
+  useEffect(() => {
+    if (!active?.mcqId) return;
+    let cancelled = false;
+    getChatMessages(lessonId, active.mcqId)
+      .then((turns) => {
+        if (!cancelled && turns.length) setMessages(turns);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [active?.mcqId, lessonId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
