@@ -4,12 +4,38 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { serverEnv } from "@/lib/config/env";
-import { authorMcqs } from "@/lib/mcq/author";
-import { evaluateMcqs } from "@/lib/mcq/evaluate";
+import { logError } from "@/lib/log";
+import { authorVettedMcqs } from "@/lib/mcq/vet";
 import { embedOne, toVector } from "@/lib/rag/embed";
 import type { GradeResult, McqPublic, ReviewMcq } from "@/types/lesson";
 
 const SOURCE_CHARS = 30_000;
+const POLL_INTERVAL_MS = 1500;
+const POLL_TIMEOUT_MS = 180_000;
+
+// Claim loser: wait for the winning run's rows.
+async function waitForMcqs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  objectiveId: string,
+): Promise<number> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  for (;;) {
+    const { data } = await supabase
+      .from("mcqs")
+      .select("id")
+      .eq("objective_id", objectiveId);
+    if (data && data.length) return data.length;
+
+    const { data: obj } = await supabase
+      .from("objectives")
+      .select("mcq_gen_status")
+      .eq("id", objectiveId)
+      .single();
+    if (obj?.mcq_gen_status === "error") return 0;
+    if (Date.now() > deadline) return 0;
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  }
+}
 
 export async function generateObjectiveMcqs(
   objectiveId: string,
@@ -31,9 +57,33 @@ export async function generateObjectiveMcqs(
     .single();
   if (!obj) throw new Error("objective not found");
 
-  // Ownership verified above via the user client; the long author + jury run can
-  // outlive the user's access token, so do the writes with the service role.
+  // Atomic claim so concurrent callers don't author a duplicate set.
+  const { data: won } = await supabase.rpc("claim_objective_mcq_gen", {
+    p_objective_id: objectiveId,
+    p_stale_seconds: 300,
+  });
+  if (!won) return { count: await waitForMcqs(supabase, objectiveId) };
+
+  // Writes via service role: the long run can outlive the user's token.
   const admin = createAdminClient();
+  try {
+    return await runGeneration(supabase, admin, obj, model, objectiveId);
+  } catch (e) {
+    await admin
+      .from("objectives")
+      .update({ mcq_gen_status: "error" })
+      .eq("id", objectiveId);
+    throw e;
+  }
+}
+
+async function runGeneration(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: ReturnType<typeof createAdminClient>,
+  obj: { id: string; lesson_id: string; title: string; section: string | null; planned_mcq_count: number | null },
+  model: string,
+  objectiveId: string,
+): Promise<{ count: number }> {
 
   // RAG: retrieve the chunks most relevant to this objective. Falls back to raw
   // text if embeddings/chunks are unavailable.
@@ -50,8 +100,8 @@ export async function generateObjectiveMcqs(
         .map((m) => m.content)
         .join("\n\n");
     }
-  } catch {
-    // fall back to raw text below
+  } catch (e) {
+    logError("quiz.rag_retrieve", e);
   }
   if (!source) {
     const { data: pages } = await supabase
@@ -78,14 +128,15 @@ export async function generateObjectiveMcqs(
     page: f.page as number | null,
   }));
 
-  const mcqs = await authorMcqs({
+  // Only jury-passing questions are kept; failures are re-authored.
+  const vetted = await authorVettedMcqs({
     objective: obj.title,
     section: obj.section ?? "",
     source,
     count,
     figures: figures.map(({ ref, caption, page }) => ({ ref, caption, page })),
   });
-  if (!mcqs || !mcqs.length) {
+  if (!vetted.length) {
     await admin.from("generations").insert({
       lesson_id: obj.lesson_id,
       kind: "mcqs",
@@ -93,10 +144,15 @@ export async function generateObjectiveMcqs(
       status: "error",
       error: "author produced no questions",
     });
+    await admin
+      .from("objectives")
+      .update({ mcq_gen_status: "error" })
+      .eq("id", objectiveId);
     return { count: 0 };
   }
 
-  const verdicts = await evaluateMcqs(obj.title, source, mcqs);
+  const mcqs = vetted.map((v) => v.mcq);
+  const verdicts = vetted.map((v) => v.verdict);
   const runs = 1;
 
   const rows = mcqs.map((m, i) => ({
@@ -110,7 +166,9 @@ export async function generateObjectiveMcqs(
     correct_index: m.correctIndex,
     explanation: m.explanation,
     choice_rationales: m.choiceRationales,
-    hint: m.hint,
+    hint: m.hints[0],
+    hints: m.hints,
+    figure_placement: m.figureRef ? m.figurePlacement : "question",
     grounded:
       verdicts[i]?.evaluations.find((e) => e.kind === "grounding")?.passed ?? false,
     model,
@@ -161,6 +219,11 @@ export async function generateObjectiveMcqs(
     raw_output: { mcqs, verdicts },
   });
 
+  await admin
+    .from("objectives")
+    .update({ mcq_gen_status: "ready" })
+    .eq("id", objectiveId);
+
   revalidatePath(`/lessons/${obj.lesson_id}`);
   return { count: rows.length };
 }
@@ -191,7 +254,7 @@ export async function getObjectiveMcqs(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("mcqs")
-    .select("id, objective_id, question, choices, order_index, figure_id")
+    .select("id, objective_id, question, choices, order_index, figure_id, figure_placement")
     .eq("objective_id", objectiveId)
     .order("order_index");
   if (error) throw new Error(error.message);
@@ -205,6 +268,7 @@ export async function getObjectiveMcqs(
     choices: m.choices as [string, string, string, string],
     orderIndex: m.order_index,
     figureUrl: m.figure_id ? (urls.get(m.figure_id) ?? null) : null,
+    figurePlacement: (m.figure_placement as "question" | "explanation") ?? "question",
   }));
 }
 
@@ -215,7 +279,7 @@ export async function getObjectiveReview(
 
   const { data: mcqs } = await supabase
     .from("mcqs")
-    .select("id, objective_id, question, choices, order_index, figure_id")
+    .select("id, objective_id, question, choices, order_index, figure_id, figure_placement")
     .eq("objective_id", objectiveId)
     .order("order_index");
   if (!mcqs || !mcqs.length) return [];
@@ -226,17 +290,21 @@ export async function getObjectiveReview(
   // Latest attempt per MCQ for the current user.
   const { data: attempts } = await supabase
     .from("attempts")
-    .select("mcq_id, selected_index, correct, created_at")
+    .select("mcq_id, selected_index, correct, attempt_count, created_at")
     .in("mcq_id", ids)
     .order("created_at", { ascending: false });
 
   const latest = new Map<
     string,
-    { selected_index: number; correct: boolean }
+    { selected_index: number; correct: boolean; attempt_count: number }
   >();
   for (const a of attempts ?? []) {
     if (!latest.has(a.mcq_id)) {
-      latest.set(a.mcq_id, { selected_index: a.selected_index, correct: a.correct });
+      latest.set(a.mcq_id, {
+        selected_index: a.selected_index,
+        correct: a.correct,
+        attempt_count: a.attempt_count,
+      });
     }
   }
 
@@ -245,21 +313,39 @@ export async function getObjectiveReview(
   const answeredIds = [...latest.keys()];
   const feedback = new Map<
     string,
-    { explanation: string; choice_rationales: string[] | null; hint: string }
+    {
+      explanation: string;
+      choice_rationales: string[] | null;
+      hint: string;
+      hints: string[] | null;
+    }
   >();
   if (answeredIds.length) {
     const admin = createAdminClient();
     const { data: rows } = await admin
       .from("mcqs")
-      .select("id, explanation, choice_rationales, hint")
+      .select("id, explanation, choice_rationales, hint, hints")
       .in("id", answeredIds);
     for (const r of rows ?? []) {
       feedback.set(r.id, {
         explanation: r.explanation,
         choice_rationales: r.choice_rationales,
         hint: r.hint,
+        hints: r.hints as string[] | null,
       });
     }
+  }
+
+  // Hint the learner last saw, by wrong-attempt number, capped at the last.
+  function reviewHint(
+    fb: { hint: string; hints: string[] | null } | undefined,
+    attemptCount: number,
+  ): string | null {
+    if (!fb) return null;
+    if (fb.hints && fb.hints.length) {
+      return fb.hints[Math.min(attemptCount, fb.hints.length) - 1];
+    }
+    return fb.hint ?? null;
   }
 
   return mcqs.map((m) => {
@@ -272,13 +358,14 @@ export async function getObjectiveReview(
       choices: m.choices as [string, string, string, string],
       orderIndex: m.order_index,
       figureUrl: m.figure_id ? (urls.get(m.figure_id) ?? null) : null,
+      figurePlacement: (m.figure_placement as "question" | "explanation") ?? "question",
       review: a
         ? {
             selectedIndex: a.selected_index,
             correct: a.correct,
             explanation: a.correct ? (fb?.explanation ?? null) : null,
             choiceRationales: a.correct ? (fb?.choice_rationales ?? null) : null,
-            hint: !a.correct ? (fb?.hint ?? null) : null,
+            hint: !a.correct ? reviewHint(fb, a.attempt_count) : null,
           }
         : null,
     };

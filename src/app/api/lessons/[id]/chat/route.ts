@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { ollamaProvider } from "@/lib/ai/ollama";
 import { embedOne, toVector } from "@/lib/rag/embed";
+import { rateLimit } from "@/lib/ratelimit";
+import { logError } from "@/lib/log";
 
 const LETTERS = ["A", "B", "C", "D"];
 
@@ -11,19 +13,59 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const body = (await req.json()) as {
-    messages: ModelMessage[];
-    question?: string;
-    choices?: string[];
-    objectiveTitle?: string;
-  };
-
   const supabase = await createClient();
 
+  // Paid model path: never serve it unauthenticated.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
+
+  if (!rateLimit(`chat:${user.id}`, 20, 60_000)) {
+    return new Response("Too many requests", { status: 429 });
+  }
+
+  // Ownership: RLS returns no row for a lesson the caller doesn't own.
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!lesson) return new Response("Not found", { status: 404 });
+
+  const body = (await req.json()) as {
+    messages: ModelMessage[];
+    mcqId?: string;
+  };
+
+  // Derive the question from the MCQ id, never from client-supplied text.
+  let question = "";
+  let choices: string[] = [];
+  let objectiveTitle = "";
+  if (body.mcqId) {
+    const { data: mcq } = await supabase
+      .from("mcqs")
+      .select("question, choices, objective_id")
+      .eq("id", body.mcqId)
+      .maybeSingle();
+    if (mcq) {
+      const { data: obj } = await supabase
+        .from("objectives")
+        .select("title, lesson_id")
+        .eq("id", mcq.objective_id)
+        .maybeSingle();
+      if (obj?.lesson_id === id) {
+        question = mcq.question as string;
+        choices = (mcq.choices as string[]) ?? [];
+        objectiveTitle = obj.title as string;
+      }
+    }
+  }
+
   let context = "";
-  if (body.question) {
+  if (question) {
     try {
-      const vec = await embedOne(body.question);
+      const vec = await embedOne(question);
       const { data } = await supabase.rpc("match_chunks", {
         p_lesson_id: id,
         p_query: toVector(vec),
@@ -34,21 +76,19 @@ export async function POST(
           .map((c) => c.content)
           .join("\n\n");
       }
-    } catch {
-      // grounding optional
+    } catch (e) {
+      logError("chat.grounding", e);
     }
   }
 
-  const options = (body.choices ?? [])
-    .map((c, i) => `${LETTERS[i]}) ${c}`)
-    .join("\n");
+  const options = choices.map((c, i) => `${LETTERS[i]}) ${c}`).join("\n");
 
   const system = `You are a warm, encouraging tutor helping a learner with ONE
 multiple-choice question. Your job is to build understanding, never to give the
 answer away.
 
-Objective: ${body.objectiveTitle ?? ""}
-Current question: "${body.question ?? ""}"
+Objective: ${objectiveTitle}
+Current question: "${question}"
 Options:
 ${options || "(unknown)"}
 
@@ -67,6 +107,7 @@ Hard rules:
   const ollama = ollamaProvider();
   const result = streamText({
     model: ollama(serverEnv().FAST_MODEL),
+    temperature: 0,
     system,
     messages: body.messages ?? [],
   });

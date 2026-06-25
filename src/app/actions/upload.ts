@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { extractPdfText } from "@/lib/pdf/extract";
 import { buildLessonChunks } from "@/lib/rag/store";
+import { logError } from "@/lib/log";
+
+// Below this, a PDF has no usable extractable text (e.g. a scanned image).
+const MIN_TEXT_CHARS = 200;
 
 export async function ingestLesson(input: {
   path: string;
@@ -30,13 +34,35 @@ export async function ingestLesson(input: {
   if (insErr) throw new Error(insErr.message);
   const lessonId = lesson.id as string;
 
+  // Remove the half-created lesson + file so a failed parse leaves no zombie.
+  async function abort(message: string): Promise<never> {
+    await supabase.from("lessons").delete().eq("id", lessonId);
+    await supabase.storage.from("pdfs").remove([input.path]);
+    throw new Error(message);
+  }
+
   const { data: blob, error: dlErr } = await supabase.storage
     .from("pdfs")
     .download(input.path);
-  if (dlErr) throw new Error(dlErr.message);
+  if (dlErr) await abort(dlErr.message);
 
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const { pages } = await extractPdfText(bytes);
+  const bytes = new Uint8Array(await blob!.arrayBuffer());
+
+  let pages: string[];
+  try {
+    ({ pages } = await extractPdfText(bytes));
+  } catch {
+    return abort(
+      "We couldn't read this PDF — it may be corrupted or password-protected. Please try another file.",
+    );
+  }
+
+  const totalChars = pages.reduce((n, t) => n + t.trim().length, 0);
+  if (totalChars < MIN_TEXT_CHARS) {
+    return abort(
+      "We couldn't find readable text in this PDF. It looks like a scanned image — please upload a text-based PDF.",
+    );
+  }
 
   if (pages.length) {
     const rows = pages.map((text, i) => ({
@@ -54,8 +80,8 @@ export async function ingestLesson(input: {
   try {
     const named = pages.map((text, i) => ({ pageNo: i + 1, text }));
     await buildLessonChunks(supabase, lessonId, named);
-  } catch {
-    // skip embeddings
+  } catch (e) {
+    logError("upload.embeddings", e, { lessonId });
   }
 
   await supabase

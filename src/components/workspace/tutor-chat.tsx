@@ -49,9 +49,7 @@ export function TutorChat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
-          question: active.question,
-          choices: active.choices,
-          objectiveTitle: active.objectiveTitle,
+          mcqId: active.mcqId,
         }),
       });
       if (!res.body) throw new Error("no stream");
