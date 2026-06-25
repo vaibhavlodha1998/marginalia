@@ -20,16 +20,27 @@ Each MCQ object:
 - "question": the question (LaTeX for any math).
 - "choices": exactly 4 options (LaTeX for any math).
 - "correctIndex": 0-3; exactly one defensible correct answer.
-- "explanation": a DETAILED explanation (2-4 sentences) of WHY the correct
-  answer is correct, teaching the underlying idea in your own words. Never say
-  "the text states"; explain the concept itself.
-- "choiceRationales": exactly 4 entries aligned to choices; for each, say
-  conceptually why it is right or wrong.
-- "hint": a nudge toward the idea that does NOT reveal or strongly imply the
-  correct option.
-- "figureRef": if a provided figure is directly relevant to the question, set
-  this to that figure's number; otherwise null. At most one or two questions
-  should use a figure, and only when it genuinely helps.
+- "explanation": a thorough, self-contained explanation (typically 4-7
+  sentences) that fully teaches the concept. State why the correct answer is
+  correct, the underlying principle or derivation behind it, and the intuition,
+  so a learner who already answered correctly still gains a complete
+  understanding. Define any key terms. Never say "the text states"; explain the
+  concept itself. Use LaTeX for any math.
+- "choiceRationales": exactly 4 entries aligned to choices; for each, give a
+  full sentence or two on conceptually why it is right or, for distractors, the
+  specific misconception that makes it wrong.
+- "hints": an array of 2 to 4 progressively more helpful nudges, shown one at a
+  time as the learner retries. The first is a gentle, conceptual pointer; each
+  next one gives a little more guidance (a relevant principle, what to rule out,
+  the reasoning step). NONE of them may reveal, name, or strongly imply the
+  correct option. Order them from least to most revealing.
+- "figureRef": if a provided figure is directly relevant, set this to that
+  figure's number; otherwise null. At most one or two questions should use a
+  figure, and only when it genuinely helps.
+- "figurePlacement": when figureRef is set, where the figure belongs —
+  "question" if it gives context the learner needs to answer, or "explanation"
+  if showing it up-front would reveal or strongly hint the answer, or it is best
+  understood only after answering. Default "question".
 
 Return ONLY a JSON object, no prose, no code fences: { "mcqs": [ ... ] }`;
 

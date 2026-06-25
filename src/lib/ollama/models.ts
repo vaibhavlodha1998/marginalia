@@ -9,13 +9,14 @@ function ollamaConfig() {
   };
 }
 
-function chat(model: string) {
-  return new ChatOpenAI({ model, temperature: 0, ...ollamaConfig() });
+function chat(model: string, maxTokens = 4096) {
+  return new ChatOpenAI({ model, temperature: 0, maxTokens, ...ollamaConfig() });
 }
 
-// Heavy reasoning (planning, MCQ authoring, summary).
+// Heavy reasoning (planning, MCQ authoring, summary). Big budget so detailed
+// explanations aren't truncated.
 export function reasoningModel() {
-  return chat(serverEnv().LLM_MODEL);
+  return chat(serverEnv().LLM_MODEL, 8192);
 }
 
 // Lighter/faster tasks (graph + title extraction, hints, quick classification).
