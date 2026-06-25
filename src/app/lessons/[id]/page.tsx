@@ -81,21 +81,25 @@ export default async function LessonPage({
     .eq("lesson_id", id)
     .order("page");
 
-  const figures: WorkspaceFigure[] = [];
-  for (const f of figRows ?? []) {
-    const { data: signed } = await supabase.storage
-      .from("figures")
-      .createSignedUrl(f.storage_path, 3600);
-    if (signed?.signedUrl) {
-      figures.push({
-        id: f.id,
-        caption: f.caption,
-        altText: f.alt_text,
-        page: f.page,
-        url: signed.signedUrl,
-      });
-    }
-  }
+  const signedFigures = await Promise.all(
+    (figRows ?? []).map(async (f) => {
+      const { data: signed } = await supabase.storage
+        .from("figures")
+        .createSignedUrl(f.storage_path, 3600);
+      return signed?.signedUrl
+        ? {
+            id: f.id,
+            caption: f.caption,
+            altText: f.alt_text,
+            page: f.page,
+            url: signed.signedUrl,
+          }
+        : null;
+    }),
+  );
+  const figures: WorkspaceFigure[] = signedFigures.filter(
+    (f): f is WorkspaceFigure => f !== null,
+  );
 
   return (
     <LessonWorkspace
