@@ -5,7 +5,6 @@ export const difficulty = z.enum(["easy", "medium", "hard"]);
 export const plannedObjective = z.object({
   title: z.string().min(1),
   difficulty,
-  conceptRefs: z.array(z.string()).default([]),
   questionCount: z.number().int().positive().max(10).default(3),
 });
 

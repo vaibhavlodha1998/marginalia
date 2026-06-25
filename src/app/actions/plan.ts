@@ -127,49 +127,16 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
       .eq("id", lessonId);
   }
 
-  const { data: concepts } = await supabase
-    .from("concepts")
-    .select("id, label, type")
-    .eq("lesson_id", lessonId);
-
-  let prompt: string;
-  const refToId = new Map<string, string>();
-
-  if (concepts && concepts.length) {
-    const { data: edges } = await supabase
-      .from("concept_edges")
-      .select("from_id, to_id, type")
-      .eq("lesson_id", lessonId);
-    const idToRef = new Map<string, string>();
-    concepts.forEach((c, i) => {
-      const ref = String(i + 1);
-      idToRef.set(c.id, ref);
-      refToId.set(ref, c.id);
-    });
-    const conceptList = concepts
-      .map((c, i) => `${i + 1}. [${c.type}] ${c.label}`)
-      .join("\n");
-    const edgeList = (edges ?? [])
-      .map((e) => {
-        const f = idToRef.get(e.from_id);
-        const t = idToRef.get(e.to_id);
-        return f && t ? `${f} ${e.type} ${t}` : null;
-      })
-      .filter(Boolean)
-      .join("\n");
-    prompt = `Concepts:\n${conceptList}\n\nRelationships:\n${edgeList || "(none)"}`;
-  } else {
-    const { data: pages } = await supabase
-      .from("pdf_pages")
-      .select("text")
-      .eq("lesson_id", lessonId)
-      .order("page_no");
-    const text = (pages ?? [])
-      .map((p) => p.text)
-      .join("\n\n")
-      .slice(0, 45_000);
-    prompt = `Document:\n\n${text}`;
-  }
+  const { data: pages } = await supabase
+    .from("pdf_pages")
+    .select("text")
+    .eq("lesson_id", lessonId)
+    .order("page_no");
+  const text = (pages ?? [])
+    .map((p) => p.text)
+    .join("\n\n")
+    .slice(0, 45_000);
+  const prompt = `Document:\n\n${text}`;
 
   const plan = await glmJson(SYSTEM, prompt, planSchema, { model: fastModel() });
   if (!plan) {
@@ -198,24 +165,8 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     planned_mcq_count: o.questionCount,
   }));
 
-  const { data: inserted, error } = await supabase
-    .from("objectives")
-    .insert(objectiveRows)
-    .select("id");
+  const { error } = await supabase.from("objectives").insert(objectiveRows);
   if (error) throw new Error(error.message);
-
-  const links: { objective_id: string; concept_id: string }[] = [];
-  flat.forEach((o, i) => {
-    const objectiveId = inserted?.[i]?.id as string | undefined;
-    if (!objectiveId) return;
-    for (const ref of o.conceptRefs) {
-      const conceptId = refToId.get(ref);
-      if (conceptId) links.push({ objective_id: objectiveId, concept_id: conceptId });
-    }
-  });
-  if (links.length) {
-    await supabase.from("objective_concepts").insert(links);
-  }
 
   await supabase.from("generations").insert({
     lesson_id: lessonId,
