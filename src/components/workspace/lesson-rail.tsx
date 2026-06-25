@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { RichText } from "@/components/ui/rich-text";
 import { RailTabButton } from "./rail-tab-button";
 import type { WorkspaceLesson, WorkspaceTab } from "./types";
 
@@ -45,11 +46,14 @@ export function LessonRail({
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-3">
           Current lesson
         </div>
-        <div className="mb-1 font-serif text-[17px] font-semibold leading-[1.25] tracking-[-0.01em] text-ink">
+        <RichText
+          inline
+          className="mb-1 block font-serif text-[17px] font-semibold leading-[1.25] tracking-[-0.01em] text-ink"
+        >
           {lesson.title}
-        </div>
+        </RichText>
         <div className="truncate font-mono text-[11.5px] text-ink-3">
-          {lesson.sourceFilename ?? "—"}
+          {lesson.sourceFilename ?? "Source PDF"}
         </div>
       </div>
 

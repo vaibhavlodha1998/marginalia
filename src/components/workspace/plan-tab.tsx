@@ -41,7 +41,7 @@ export function PlanTab({
         {sections.map((section) => (
           <div key={section.title}>
             <h3 className="mb-3 font-serif text-[14px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-              {section.title}
+              <RichText inline>{section.title}</RichText>
             </h3>
             <div className="flex flex-col gap-3">
               {section.items.map((o) => {

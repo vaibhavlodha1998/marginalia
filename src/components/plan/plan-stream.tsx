@@ -54,7 +54,7 @@ export function PlanStream({ lessonId }: { lessonId: string }) {
         {sections.map((section, i) => (
           <div key={i}>
             <h2 className="mb-3 font-serif text-[15px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-              {section?.title ?? "…"}
+              <RichText inline>{section?.title ?? "…"}</RichText>
             </h2>
             <div className="flex flex-col gap-3">
               {(section?.objectives ?? []).map((o, j) => (

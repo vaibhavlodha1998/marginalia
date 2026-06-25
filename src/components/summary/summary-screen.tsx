@@ -55,7 +55,7 @@ export function SummaryScreen({
           Lesson complete
         </div>
         <h1 className="mb-2.5 font-serif text-[34px] font-semibold tracking-[-0.02em] text-ink">
-          Nicely done — you finished {lessonTitle}.
+          Nicely done, you finished <RichText inline>{lessonTitle}</RichText>.
         </h1>
         <p className="text-[16px] leading-relaxed text-ink-2">
           You worked through every objective. Here&apos;s how it went, and a few

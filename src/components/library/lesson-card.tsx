@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { RichText } from "@/components/ui/rich-text";
 import { DeleteLessonButton } from "./delete-lesson-button";
 import type { Lesson } from "@/types/lesson";
 
@@ -12,7 +13,7 @@ const STATUS_LABEL: Record<Lesson["status"], string> = {
 
 export function LessonCard({ lesson }: { lesson: Lesson }) {
   const progress = lesson.status === "complete" ? 100 : 0;
-  const source = lesson.sourceFilename ?? "—";
+  const source = lesson.sourceFilename ?? "Source PDF";
 
   return (
     <div className="group relative">
@@ -31,7 +32,7 @@ export function LessonCard({ lesson }: { lesson: Lesson }) {
         </div>
 
         <h3 className="mb-1.5 mt-4 font-serif text-[20px] font-semibold tracking-[-0.01em] text-ink">
-          {lesson.title}
+          <RichText inline>{lesson.title}</RichText>
         </h3>
         <div className="mb-[18px] truncate font-mono text-[12.5px] text-ink-3">
           {source}

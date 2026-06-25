@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { approvePlan } from "@/app/actions/plan";
 import { generateObjectiveMcqs } from "@/app/actions/quiz";
 import { Button } from "@/components/ui/button";
+import { RichText } from "@/components/ui/rich-text";
 import { PlanObjectiveRow } from "./plan-objective-row";
 import type { Difficulty, Objective } from "@/types/lesson";
 
@@ -109,7 +110,7 @@ export function PlanReview({
         {sections.map((section) => (
           <div key={section.title}>
             <h2 className="mb-3 font-serif text-[15px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-              {section.title}
+              <RichText inline>{section.title}</RichText>
             </h2>
             <div className="flex flex-col gap-3">
               {section.rows.map((r) => (
