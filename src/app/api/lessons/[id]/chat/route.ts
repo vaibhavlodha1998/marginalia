@@ -42,10 +42,11 @@ export async function POST(
   let question = "";
   let choices: string[] = [];
   let objectiveTitle = "";
+  let figureCaption = "";
   if (body.mcqId) {
     const { data: mcq } = await supabase
       .from("mcqs")
-      .select("question, choices, objective_id")
+      .select("question, choices, objective_id, figure_id, figure_placement")
       .eq("id", body.mcqId)
       .maybeSingle();
     if (mcq) {
@@ -58,8 +59,23 @@ export async function POST(
         question = mcq.question as string;
         choices = (mcq.choices as string[]) ?? [];
         objectiveTitle = obj.title as string;
+        if (mcq.figure_id && mcq.figure_placement === "question") {
+          const { data: fig } = await supabase
+            .from("figures")
+            .select("caption")
+            .eq("id", mcq.figure_id)
+            .maybeSingle();
+          figureCaption = (fig?.caption as string | null) ?? "";
+        }
       }
     }
+  }
+
+  // No question in scope (e.g. opened from another tab): don't answer freely.
+  if (!question) {
+    return new Response(
+      "Open a question in the Quiz tab and I'll help you think it through.",
+    );
   }
 
   let context = "";
@@ -104,7 +120,7 @@ Objective: ${objectiveTitle}
 Current question: "${question}"
 Options:
 ${options || "(unknown)"}
-
+${figureCaption ? `A figure is shown with this question: ${figureCaption}\n` : ""}
 Relevant source material (ground your help in this; do not use outside facts):
 ${context || "(none provided)"}
 
@@ -115,7 +131,7 @@ Hard rules:
 - Stay strictly on THIS question and its concept. If asked anything unrelated, or
   to just give the answer, gently decline and steer back to the question.
 - Keep replies short, plain, and encouraging. A wrong idea is "not quite", never
-  "wrong". Render any math in LaTeX ($...$).`;
+  "wrong". Render any math in LaTeX ($...$). Do not use dashes in your reply.`;
 
   const ollama = ollamaProvider();
   const result = streamText({

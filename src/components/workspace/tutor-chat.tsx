@@ -6,6 +6,7 @@ import { useQuizStore } from "@/lib/store/quiz-store";
 import { getChatMessages } from "@/app/actions/chat";
 import { RichText } from "@/components/ui/rich-text";
 import { ThinkingDots } from "@/components/ui/thinking-dots";
+import { QuizFigure } from "@/components/quiz/quiz-figure";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -140,9 +141,13 @@ export function TutorChat({
         ref={scrollRef}
         className="mg-scroll flex flex-1 flex-col gap-3.5 overflow-y-auto p-[18px]"
       >
+        {active?.figureUrl && active.figurePlacement === "question" && (
+          <QuizFigure url={active.figureUrl} />
+        )}
+
         <div className="max-w-[86%] self-start rounded-[14px_14px_14px_4px] border border-border bg-surface px-3.5 py-[11px] text-[13.5px] leading-[1.55] text-ink">
           {active
-            ? "Ask me for a hint or to explain anything about this question — I'll never give the answer away."
+            ? "Ask me for a hint or to explain anything about this question, and I'll never give the answer away."
             : "Open a question in the Quiz tab and I'll help you think it through."}
         </div>
 

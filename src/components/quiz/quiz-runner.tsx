@@ -109,7 +109,14 @@ export function QuizRunner({
     const m = mcqs[qIndex];
     setActiveQuestion(
       m
-        ? { mcqId: m.id, question: m.question, choices: m.choices, objectiveTitle: title }
+        ? {
+            mcqId: m.id,
+            question: m.question,
+            choices: m.choices,
+            objectiveTitle: title,
+            figureUrl: m.figureUrl,
+            figurePlacement: m.figurePlacement,
+          }
         : null,
     );
     return () => setActiveQuestion(null);

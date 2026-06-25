@@ -5,6 +5,8 @@ export interface ActiveQuestion {
   question: string;
   choices: string[];
   objectiveTitle: string;
+  figureUrl: string | null;
+  figurePlacement: "question" | "explanation";
 }
 
 interface QuizStore {
