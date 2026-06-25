@@ -32,13 +32,40 @@ const client = new Client({
 });
 await client.connect();
 
+// Ledger of applied migrations, so each runs once and re-runs are skipped.
+await client.query(`create table if not exists public.schema_migrations (
+  version text primary key,
+  applied_at timestamptz not null default now()
+)`);
+const { rows } = await client.query("select version from public.schema_migrations");
+const applied = new Set(rows.map((r) => r.version));
+
 for (const file of files) {
+  if (applied.has(file)) {
+    console.log(`skip ${file} (applied)`);
+    continue;
+  }
   process.stdout.write(`applying ${file} ... `);
   try {
+    await client.query("begin");
     await client.query(readFileSync(`${dir}/${file}`, "utf8"));
+    await client.query("insert into public.schema_migrations(version) values ($1)", [file]);
+    await client.query("commit");
     console.log("ok");
   } catch (e) {
-    console.log("FAILED:", e.message);
+    await client.query("rollback");
+    if (/already exists|already a/i.test(e.message)) {
+      // Object predates the ledger: record it so future runs skip it.
+      await client.query(
+        "insert into public.schema_migrations(version) values ($1) on conflict do nothing",
+        [file],
+      );
+      console.log("already applied (recorded)");
+    } else {
+      console.log("FAILED:", e.message);
+      await client.end();
+      process.exit(1);
+    }
   }
 }
 

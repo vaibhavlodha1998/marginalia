@@ -235,24 +235,11 @@ export async function approvePlan(
 ): Promise<void> {
   const supabase = await createClient();
 
-  let order = 0;
-  for (const e of edits) {
-    await supabase
-      .from("objectives")
-      .update({
-        difficulty: e.difficulty,
-        included: e.included,
-        order_index: e.included ? order : 999,
-        status: e.included && order === 0 ? "current" : "upcoming",
-      })
-      .eq("id", e.id);
-    if (e.included) order += 1;
-  }
-
-  await supabase
-    .from("lessons")
-    .update({ status: "in_progress", plan_approved_at: new Date().toISOString() })
-    .eq("id", lessonId);
+  const { error } = await supabase.rpc("approve_plan", {
+    p_lesson_id: lessonId,
+    p_edits: edits,
+  });
+  if (error) throw new Error(error.message);
 
   revalidatePath("/");
   revalidatePath(`/lessons/${lessonId}`);

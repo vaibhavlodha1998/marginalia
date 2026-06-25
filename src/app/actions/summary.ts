@@ -29,6 +29,14 @@ export async function generateSummary(
 ): Promise<SummaryResult> {
   const supabase = await createClient();
 
+  // Ownership gate before any service-role write.
+  const { data: owned } = await supabase
+    .from("lessons")
+    .select("id")
+    .eq("id", lessonId)
+    .maybeSingle();
+  if (!owned) throw new Error("Lesson not found");
+
   const { data: existing } = await supabase
     .from("lesson_summaries")
     .select("overall_score, first_try_accuracy, report, study_tips")
