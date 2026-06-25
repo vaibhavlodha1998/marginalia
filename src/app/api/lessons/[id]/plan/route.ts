@@ -29,6 +29,7 @@ export async function POST(
   const ollama = ollamaProvider();
   const result = streamObject({
     model: ollama(serverEnv().FAST_MODEL),
+    temperature: 0,
     schema: planSchema,
     system: PLAN_SYSTEM,
     prompt: `Document:\n\n${text}`,

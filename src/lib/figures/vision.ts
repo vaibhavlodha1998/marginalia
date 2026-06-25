@@ -30,6 +30,7 @@ export async function captionFigure(
       },
       body: JSON.stringify({
         model: VISION_MODEL,
+        temperature: 0,
         max_tokens: 280,
         messages: [
           {
