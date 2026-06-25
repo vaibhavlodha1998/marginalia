@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LessonWorkspace } from "@/components/workspace/lesson-workspace";
 import type {
   ProgressMap,
+  WorkspaceFigure,
   WorkspacePage,
 } from "@/components/workspace/types";
 import type { Objective } from "@/types/lesson";
@@ -74,6 +75,28 @@ export default async function LessonPage({
     text: p.text,
   }));
 
+  const { data: figRows } = await supabase
+    .from("figures")
+    .select("id, caption, alt_text, page, storage_path")
+    .eq("lesson_id", id)
+    .order("page");
+
+  const figures: WorkspaceFigure[] = [];
+  for (const f of figRows ?? []) {
+    const { data: signed } = await supabase.storage
+      .from("figures")
+      .createSignedUrl(f.storage_path, 3600);
+    if (signed?.signedUrl) {
+      figures.push({
+        id: f.id,
+        caption: f.caption,
+        altText: f.alt_text,
+        page: f.page,
+        url: signed.signedUrl,
+      });
+    }
+  }
+
   return (
     <LessonWorkspace
       lesson={{
@@ -88,6 +111,7 @@ export default async function LessonPage({
       progress={progress}
       pages={pages}
       pdfUrl={pdfUrl}
+      figures={figures}
     />
   );
 }

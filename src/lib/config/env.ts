@@ -3,7 +3,7 @@ import { z } from "zod";
 const serverSchema = z.object({
   LLM_MODEL: z.string().min(1).default("glm-5.2:cloud"),
   FAST_MODEL: z.string().min(1).default("deepseek-v4-flash"),
-  VISION_MODEL: z.string().min(1).default("qwen3-vl:235b-cloud"),
+  VISION_MODEL: z.string().min(1).default("minimax-m3"),
   EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
   EVAL_MODEL: z.string().min(1).default("deepseek-v4-flash"),
   OLLAMA_API_KEY: z.string().min(1),

@@ -24,4 +24,12 @@ export interface WorkspacePage {
   text: string;
 }
 
+export interface WorkspaceFigure {
+  id: string;
+  caption: string | null;
+  altText: string | null;
+  page: number | null;
+  url: string;
+}
+
 export type WorkspaceObjective = Objective;

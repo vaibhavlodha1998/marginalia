@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ingestLesson } from "@/app/actions/upload";
+import { buildFigures } from "@/app/actions/figures";
 import { UploadStep } from "./upload-step";
 
 const MAX_BYTES = 40 * 1024 * 1024;
@@ -43,6 +44,9 @@ export function UploadDropzone({ userId }: { userId: string }) {
 
       setPhase("parsing");
       const { lessonId } = await ingestLesson({ path, filename: file.name });
+
+      // Extract + caption figures in the background.
+      buildFigures(lessonId).catch(() => {});
 
       router.replace(`/lessons/${lessonId}/plan`);
     } catch (e) {

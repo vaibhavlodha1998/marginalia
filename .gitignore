@@ -37,6 +37,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local test artifacts
+*.pdf
+extracted-figures/
+_*.json
+_*.txt
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

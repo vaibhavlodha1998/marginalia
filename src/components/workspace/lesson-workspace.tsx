@@ -9,6 +9,7 @@ import { ProgressTab } from "./progress-tab";
 import { TutorChat } from "./tutor-chat";
 import type {
   ProgressMap,
+  WorkspaceFigure,
   WorkspaceLesson,
   WorkspaceObjective,
   WorkspacePage,
@@ -21,12 +22,14 @@ export function LessonWorkspace({
   progress,
   pages,
   pdfUrl,
+  figures,
 }: {
   lesson: WorkspaceLesson;
   objectives: WorkspaceObjective[];
   progress: ProgressMap;
   pages: WorkspacePage[];
   pdfUrl: string | null;
+  figures: WorkspaceFigure[];
 }) {
   const [tab, setTab] = useState<WorkspaceTab>("quiz");
   const [chatOpen, setChatOpen] = useState(false);
@@ -73,7 +76,12 @@ export function LessonWorkspace({
             <PlanTab objectives={objectives} onSelect={selectObjective} />
           )}
           {tab === "source" && (
-            <SourceTab lesson={lesson} pages={pages} pdfUrl={pdfUrl} />
+            <SourceTab
+              lesson={lesson}
+              pages={pages}
+              pdfUrl={pdfUrl}
+              figures={figures}
+            />
           )}
           {tab === "progress" && (
             <ProgressTab
