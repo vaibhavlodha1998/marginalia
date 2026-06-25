@@ -1,80 +1,25 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { experimental_useObject as useObject } from "@ai-sdk/react";
-import { planSchema } from "@/lib/schemas/plan";
-import { savePlan, generatePlan } from "@/app/actions/plan";
-import { DifficultyPill } from "@/components/ui/difficulty-pill";
-import { RichText } from "@/components/ui/rich-text";
+import { useEffect, useRef, useState } from "react";
+import { generatePlan } from "@/app/actions/plan";
 import { PlanThinking } from "./plan-thinking";
 
+// Draft the plan via a single server action, then hard-reload so the persisted
+// objectives render reliably (router.refresh can stall under dev Turbopack).
 export function PlanStream({ lessonId }: { lessonId: string }) {
-  const router = useRouter();
   const started = useRef(false);
-
-  const { object, submit, error } = useObject({
-    api: `/api/lessons/${lessonId}/plan`,
-    schema: planSchema,
-    onFinish: async ({ object: final }) => {
-      try {
-        if (final) await savePlan(lessonId, final);
-        else await generatePlan(lessonId);
-      } catch {
-        await generatePlan(lessonId).catch(() => {});
-      }
-      router.refresh();
-    },
-    onError: async () => {
-      await generatePlan(lessonId).catch(() => {});
-      router.refresh();
-    },
-  });
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    submit({});
-  }, [submit]);
+    generatePlan(lessonId)
+      .then((r) => {
+        if (r.count > 0) window.location.reload();
+        else setFailed(true);
+      })
+      .catch(() => setFailed(true));
+  }, [lessonId]);
 
-  const sections = object?.sections ?? [];
-
-  if (error) return <PlanThinking failed />;
-  if (!sections.length) return <PlanThinking />;
-
-  return (
-    <div>
-      <h1 className="mb-2 font-serif text-[30px] font-semibold tracking-[-0.02em] text-ink">
-        Drafting your lesson plan…
-      </h1>
-      <p className="mb-7 text-[15px] text-ink-2">
-        Objectives appear as they&apos;re written.
-      </p>
-      <div className="flex flex-col gap-7">
-        {sections.map((section, i) => (
-          <div key={i}>
-            <h2 className="mb-3 font-serif text-[15px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-              <RichText inline>{section?.title ?? "…"}</RichText>
-            </h2>
-            <div className="flex flex-col gap-3">
-              {(section?.objectives ?? []).map((o, j) => (
-                <div
-                  key={j}
-                  className="flex items-center gap-4 rounded-[12px] border border-border bg-surface px-[18px] py-4 [animation:mg-fade-up_.3s_ease]"
-                >
-                  <RichText
-                    inline
-                    className="min-w-0 flex-1 font-serif text-[17px] font-semibold tracking-[-0.01em] text-ink"
-                  >
-                    {o?.title ?? "…"}
-                  </RichText>
-                  {o?.difficulty && <DifficultyPill difficulty={o.difficulty} />}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <PlanThinking failed={failed} />;
 }
