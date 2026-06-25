@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/ui/rich-text";
+import { QuizFigure } from "./quiz-figure";
 import type { GradeResult } from "@/types/lesson";
 
 const LETTERS = ["A", "B", "C", "D"];
@@ -11,6 +12,7 @@ export function McqCard({
   question,
   choices,
   figureUrl,
+  figurePlacement,
   selected,
   onSelect,
   result,
@@ -26,6 +28,7 @@ export function McqCard({
   question: string;
   choices: string[];
   figureUrl: string | null;
+  figurePlacement: "question" | "explanation";
   selected: number | null;
   onSelect: (i: number) => void;
   result: GradeResult | null;
@@ -52,14 +55,8 @@ export function McqCard({
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-8 shadow-[0_4px_18px_rgba(44,39,34,0.04)] max-md:p-6">
-      {figureUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={figureUrl}
-          alt="Figure for this question"
-          className="mb-5 max-h-[340px] w-full rounded-[12px] border border-border bg-white object-contain p-2"
-          style={{ mixBlendMode: "multiply" }}
-        />
+      {figureUrl && figurePlacement === "question" && (
+        <QuizFigure url={figureUrl} className="mb-5" />
       )}
 
       <RichText className="mb-6 font-serif text-[24px] font-semibold leading-[1.35] tracking-[-0.01em] text-ink">
@@ -109,6 +106,9 @@ export function McqCard({
           <RichText className="text-[16px] leading-[1.75] text-ink">
             {result.explanation}
           </RichText>
+          {figureUrl && figurePlacement === "explanation" && (
+            <QuizFigure url={figureUrl} className="mt-4" />
+          )}
         </div>
       )}
 
@@ -118,7 +118,7 @@ export function McqCard({
             <span className="flex size-[18px] items-center justify-center rounded-full bg-wrong text-[12px] text-white">
               !
             </span>
-            Not yet — here&apos;s a nudge
+            Not yet, here&apos;s a nudge
           </div>
           <RichText className="text-[16px] leading-[1.75] text-ink">
             {result.hint}

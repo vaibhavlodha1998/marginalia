@@ -23,6 +23,7 @@ export interface McqPublic {
   choices: [string, string, string, string];
   orderIndex: number;
   figureUrl: string | null;
+  figurePlacement: "question" | "explanation";
 }
 
 export interface GradeResult {
