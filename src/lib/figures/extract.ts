@@ -1,5 +1,3 @@
-import sharp from "sharp";
-
 export interface ExtractedImage {
   page: number;
   png: Buffer;
@@ -26,6 +24,13 @@ export async function extractPdfImages(
   data: Uint8Array,
 ): Promise<ExtractedImage[]> {
   const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // Skip figures (rather than crash) if sharp's native binary is unavailable.
+  let sharp: typeof import("sharp").default;
+  try {
+    ({ default: sharp } = await import("sharp"));
+  } catch {
+    return [];
+  }
   const loadingTask = getDocument({ data });
   const doc = await loadingTask.promise;
   const out: ExtractedImage[] = [];
