@@ -94,11 +94,13 @@ export function LessonWorkspace({
         </div>
       </main>
 
-      <TutorChat
-        lessonId={lesson.id}
-        open={chatOpen}
-        onToggle={() => setChatOpen((v) => !v)}
-      />
+      {(tab === "quiz" || tab === "source") && (
+        <TutorChat
+          lessonId={lesson.id}
+          open={chatOpen}
+          onToggle={() => setChatOpen((v) => !v)}
+        />
+      )}
     </div>
   );
 }
