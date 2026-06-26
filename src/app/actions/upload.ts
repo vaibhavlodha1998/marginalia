@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractPdfText } from "@/lib/pdf/extract";
 import { buildLessonChunks } from "@/lib/rag/store";
@@ -75,19 +76,21 @@ export async function ingestLesson(input: {
     if (pagesErr) throw new Error(pagesErr.message);
   }
 
-  // Best-effort: embed chunks for retrieval. A missing local Ollama must not
-  // break the upload — MCQ grounding falls back to raw text.
-  try {
-    const named = pages.map((text, i) => ({ pageNo: i + 1, text }));
-    await buildLessonChunks(supabase, lessonId, named);
-  } catch (e) {
-    logError("upload.embeddings", e, { lessonId });
-  }
-
   await supabase
     .from("lessons")
     .update({ pages: pages.length, status: "plan_pending" })
     .eq("id", lessonId);
+
+  // Embed chunks for retrieval after the response, so ingest stays fast. Missing
+  // embeddings just mean MCQ grounding falls back to raw text.
+  const named = pages.map((text, i) => ({ pageNo: i + 1, text }));
+  after(async () => {
+    try {
+      await buildLessonChunks(supabase, lessonId, named);
+    } catch (e) {
+      logError("upload.embeddings", e, { lessonId });
+    }
+  });
 
   return { lessonId };
 }
