@@ -8,8 +8,12 @@ const serverSchema = z.object({
   EVAL_MODEL: z.string().min(1).default("deepseek-v4-flash"),
   OLLAMA_API_KEY: z.string().min(1),
   OLLAMA_BASE_URL: z.string().url().default("https://ollama.com"),
-  // Embeddings run on a LOCAL Ollama (cloud has no embedding models).
+  // Embeddings run on a LOCAL Ollama (cloud has no embedding models)...
   EMBED_BASE_URL: z.string().url().default("http://localhost:11434"),
+  // ...unless GOOGLE_API_KEY is set, then embeddings route to Gemini (works on
+  // serverless, e.g. Vercel). 768-dim to match the schema.
+  GOOGLE_API_KEY: z.string().optional(),
+  GEMINI_EMBED_MODEL: z.string().min(1).default("gemini-embedding-001"),
   // Required only by the agent runtime (checkpointer) / admin client; validated
   // at the point of use so model + API features work without them.
   DATABASE_URL: z.string().optional(),
