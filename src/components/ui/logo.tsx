@@ -3,10 +3,12 @@ import { cn } from "@/lib/utils/cn";
 export function Logo({
   size = "md",
   showWordmark = true,
+  wordmarkClassName,
   className,
 }: {
   size?: "sm" | "md";
   showWordmark?: boolean;
+  wordmarkClassName?: string;
   className?: string;
 }) {
   const tile = size === "sm" ? "size-6 text-[15px]" : "size-[26px] text-[17px]";
@@ -26,6 +28,7 @@ export function Logo({
           className={cn(
             "font-serif font-semibold tracking-[-0.01em] text-ink",
             word,
+            wordmarkClassName,
           )}
         >
           Marginalia

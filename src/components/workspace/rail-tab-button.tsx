@@ -19,7 +19,7 @@ export function RailTabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2.5 rounded-[9px] px-3 py-2.5 text-left text-[14px] transition-colors",
+        "flex shrink-0 items-center gap-2.5 rounded-[9px] px-3 py-2.5 text-left text-[14px] transition-colors max-md:gap-2 max-md:px-2.5",
         active
           ? "bg-surface font-semibold text-ink"
           : "font-medium text-ink-2 hover:bg-ink/5",

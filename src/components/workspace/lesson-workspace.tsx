@@ -62,7 +62,7 @@ export function LessonWorkspace({
       />
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
-        <div className="mg-scroll flex-1 overflow-y-auto">
+        <div className="mg-scroll flex-1 overflow-y-auto max-md:pb-24">
           {tab === "quiz" && (
             <QuizTab
               lessonId={lesson.id}

@@ -38,8 +38,8 @@ export function LessonRail({
 
   return (
     <aside className="flex w-[250px] flex-none flex-col border-r border-border-strong bg-surface-2 p-4 max-md:w-full max-md:flex-row max-md:items-center max-md:gap-3 max-md:border-b max-md:border-r-0 max-md:p-3">
-      <div className="px-2 pb-[18px] pt-1 max-md:p-0">
-        <Logo size="sm" />
+      <div className="px-2 pb-[18px] pt-1 max-md:shrink-0 max-md:p-0">
+        <Logo size="sm" wordmarkClassName="max-md:hidden" />
       </div>
 
       <div className="rounded-[12px] border border-border bg-surface p-3.5 max-md:hidden">
@@ -57,7 +57,7 @@ export function LessonRail({
         </div>
       </div>
 
-      <nav className="mt-[18px] flex flex-col gap-[3px] max-md:mt-0 max-md:flex-row">
+      <nav className="mg-scroll mt-[18px] flex flex-col gap-[3px] max-md:mt-0 max-md:min-w-0 max-md:flex-1 max-md:flex-row max-md:gap-1 max-md:overflow-x-auto">
         {TABS.map((t) => (
           <RailTabButton
             key={t.id}
