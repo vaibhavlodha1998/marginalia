@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chunkPages } from "./chunk";
 import { embed, toVector } from "./embed";
 
-const BATCH = 64;
+const BATCH = 100; // Gemini batchEmbedContents max per request; fewer round-trips.
 
 export async function buildLessonChunks(
   supabase: SupabaseClient,
