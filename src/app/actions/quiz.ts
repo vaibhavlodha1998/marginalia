@@ -133,7 +133,7 @@ async function runGeneration(
   // Incremental: author and vet one question at a time, inserting each as soon
   // as it passes so the quiz can reveal it while the rest are still generating.
   const asked: string[] = [];
-  let best: VettedMcq | null = null;
+  const candidates: VettedMcq[] = [];
   let order = 0;
 
   const insertOne = async (v: VettedMcq, orderIndex: number): Promise<void> => {
@@ -185,23 +185,30 @@ async function runGeneration(
   let attempts = 0;
   while (order < count && attempts < count + 2) {
     attempts++;
-    const { vetted, best: b } = await authorOneVetted({
+    const { vetted, best } = await authorOneVetted({
       objective: obj.title,
       section: obj.section ?? "",
       source,
       figures: figs,
       avoid: asked,
     });
-    if (b && (!best || b.verdict.score > best.verdict.score)) best = b;
-    if (!vetted) continue;
-    await insertOne(vetted, order);
-    order++;
+    if (vetted) {
+      await insertOne(vetted, order);
+      order++;
+    } else if (best) {
+      candidates.push(best);
+    }
   }
 
-  // Never leave an objective empty: fall back to the best-scoring attempt.
-  if (order === 0 && best) {
-    await insertOne(best, 0);
-    order = 1;
+  // Fill any remaining slots so the question count matches the plan, using the
+  // best-scoring attempts we already authored (no extra model calls).
+  if (order < count && candidates.length) {
+    candidates.sort((a, b) => b.verdict.score - a.verdict.score);
+    for (const cand of candidates) {
+      if (order >= count) break;
+      await insertOne(cand, order);
+      order++;
+    }
   }
 
   if (order === 0) {

@@ -58,7 +58,7 @@ export async function evaluateMcqs(
   source: string,
   mcqs: AuthoredMcq[],
 ): Promise<AggregatedVerdict[]> {
-  const quorum = (process.env.EVAL_QUORUM ?? "all").toLowerCase();
+  const quorum = (process.env.EVAL_QUORUM ?? "majority").toLowerCase();
   const threshold = Number.parseFloat(process.env.EVAL_PASS_THRESHOLD ?? "0.7") || 0.7;
 
   const results = await Promise.all(
