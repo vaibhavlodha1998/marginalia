@@ -158,3 +158,24 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
 }
+/* Keep long words, code blocks, and tables from overflowing on narrow screens. */
+.mg-rich {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.mg-rich pre {
+  overflow-x: auto;
+  margin: 0.5em 0;
+  padding: 10px 12px;
+  background: var(--color-surface-2);
+  border-radius: 8px;
+}
+.mg-rich pre code {
+  background: none;
+  padding: 0;
+}
+.mg-rich table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}

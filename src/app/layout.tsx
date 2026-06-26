@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Spectral, Hanken_Grotesk } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -18,8 +18,15 @@ const sans = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Marginalia — AI Learning Tutor",
+  title: "Marginalia, AI Learning Tutor",
   description: "Turn any PDF into an interactive, quiz-based lesson.",
+};
+
+// resizes-content keeps the chat input above the on-screen keyboard on phones.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

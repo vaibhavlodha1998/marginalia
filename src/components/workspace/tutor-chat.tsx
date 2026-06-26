@@ -213,7 +213,7 @@ export function TutorChat({
             type="button"
             disabled={pending || !input.trim()}
             onClick={() => send(input)}
-            className="flex size-8 flex-none items-center justify-center rounded-lg bg-primary text-[14px] font-semibold text-on-primary disabled:opacity-50"
+            className="flex size-9 flex-none items-center justify-center rounded-lg bg-primary text-[14px] font-semibold text-on-primary disabled:opacity-50 max-md:size-11"
           >
             ↑
           </button>
