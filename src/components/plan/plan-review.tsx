@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { approvePlan } from "@/app/actions/plan";
+import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/ui/rich-text";
 import { PlanObjectiveRow } from "./plan-objective-row";
@@ -64,6 +65,17 @@ export function PlanReview({
     );
   }
 
+  function toggleSection(title: string) {
+    setRows((rs) => {
+      const allIncluded = rs
+        .filter((r) => r.section === title)
+        .every((r) => r.included);
+      return rs.map((r) =>
+        r.section === title ? { ...r, included: !allIncluded } : r,
+      );
+    });
+  }
+
   function confirm() {
     // Pre-warm the first objective's questions (plain request, off the action queue).
     const first = rows.find((r) => r.included);
@@ -111,11 +123,38 @@ export function PlanReview({
       </div>
 
       <div className="flex flex-col gap-7">
-        {sections.map((section) => (
+        {sections.map((section) => {
+          const allIncluded = section.rows.every((r) => r.included);
+          const someIncluded = !allIncluded && section.rows.some((r) => r.included);
+          return (
           <div key={section.title}>
-            <h2 className="mb-3 font-serif text-[15px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-              <RichText inline>{section.title}</RichText>
-            </h2>
+            <div className="mb-3 flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                aria-pressed={allIncluded}
+                className={cn(
+                  "flex size-[20px] shrink-0 items-center justify-center rounded-[6px] border-[1.5px] text-[12px] text-on-primary",
+                  allIncluded
+                    ? "border-primary bg-primary"
+                    : someIncluded
+                      ? "border-primary bg-primary/40"
+                      : "border-border-muted bg-transparent",
+                )}
+              >
+                {allIncluded ? "✓" : someIncluded ? "–" : ""}
+              </button>
+              <h2 className="font-serif text-[15px] font-semibold uppercase tracking-[0.04em] text-ink-3">
+                <RichText inline>{section.title}</RichText>
+              </h2>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                className="ml-auto text-[12px] font-semibold text-primary hover:underline"
+              >
+                {allIncluded ? "Deselect all" : "Select all"}
+              </button>
+            </div>
             <div className="flex flex-col gap-3">
               {section.rows.map((r) => (
                 <PlanObjectiveRow
@@ -130,7 +169,8 @@ export function PlanReview({
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-7 flex items-center justify-between gap-4 rounded-[14px] border border-border bg-surface-3 px-[22px] py-5">
