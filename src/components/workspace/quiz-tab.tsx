@@ -42,6 +42,7 @@ export function QuizTab({
       isReview={current.status === "done"}
       title={current.title}
       difficulty={current.difficulty}
+      plannedCount={current.plannedMcqCount ?? 0}
       objNum={index}
       objTotal={objectives.length}
     />

@@ -60,6 +60,7 @@ export function QuizRunner({
   isReview,
   title,
   difficulty,
+  plannedCount,
   objNum,
   objTotal,
 }: {
@@ -68,6 +69,7 @@ export function QuizRunner({
   isReview: boolean;
   title: string;
   difficulty: Difficulty;
+  plannedCount: number;
   objNum: number;
   objTotal: number;
 }) {
@@ -75,12 +77,17 @@ export function QuizRunner({
   const setActiveQuestion = useQuizStore((s) => s.setActive);
   const started = useRef(false);
   const initialized = useRef(false);
+  const plannedRef = useRef(plannedCount);
   const [phase, setPhase] = useState<Phase>("loading");
   const [mcqs, setMcqs] = useState<McqPublic[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [qIndex, setQIndex] = useState(0);
   const [grading, setGrading] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    plannedRef.current = plannedCount;
+  }, [plannedCount]);
 
   useEffect(() => {
     if (started.current) return;
@@ -116,7 +123,9 @@ export function QuizRunner({
       apply(list);
       if (list.length) setPhase("ready");
       const { status } = await getObjectiveGenStatus(objectiveId);
-      if (status === "ready" || status === "error") {
+      // Done when all planned questions are in, even if the status flag is stale.
+      const haveAll = plannedRef.current > 0 && list.length >= plannedRef.current;
+      if (status === "ready" || status === "error" || haveAll) {
         setGenerating(false);
         if (!list.length) setPhase("error");
         return;
@@ -131,7 +140,8 @@ export function QuizRunner({
         apply(list);
         const { status } = await getObjectiveGenStatus(objectiveId);
 
-        if (list.length && status === "ready") {
+        const haveAll = plannedRef.current > 0 && list.length >= plannedRef.current;
+        if (list.length && (status === "ready" || haveAll)) {
           setPhase("ready");
         } else {
           // Always (re)fire: the claim dedupes a live run and reclaims a stale one,
