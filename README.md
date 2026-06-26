@@ -8,6 +8,8 @@ document's figures, and ends with a progress report and personalized study tips.
 
 Live: https://marginalia.klovr.ai
 
+Architecture and design decisions: [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## What it does
 
 1. **Upload** a PDF. Text is extracted, chunked, and embedded for retrieval;
