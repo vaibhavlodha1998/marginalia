@@ -6268,7 +6268,7 @@ sharp@^0.34.5:
 
 sharp@^0.35.2:
   version "0.35.2"
-  resolved "https://registry.npmjs.org/sharp/-/sharp-0.35.2.tgz"
+  resolved "https://registry.yarnpkg.com/sharp/-/sharp-0.35.2.tgz#4437256b654557e2b48279d1e67f086e7872d06a"
   integrity sha512-FVtFjtBCMiJS6yb5CX7Sop45WFMpeGw6oRKuJnXYgf/f1ms/D7LE/ZUSNxnW7rZ/dbslQWYkoqFHGPaDBtaK4w==
   dependencies:
     "@img/colour" "^1.1.0"
@@ -6923,6 +6923,11 @@ universalify@^2.0.0:
   version "2.0.1"
   resolved "https://registry.npmjs.org/universalify/-/universalify-2.0.1.tgz"
   integrity sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==
+
+unpdf@^1.6.2:
+  version "1.6.2"
+  resolved "https://registry.yarnpkg.com/unpdf/-/unpdf-1.6.2.tgz#9ba5a8dbc5b7f98bbd0e6a5503a5730d210b7103"
+  integrity sha512-zQ80ySoPuPHOsvIoRp/nJyQt8TOUoTh1+WBCGcBvlddQNgKDLRwm0AY3x8Q35I7+kIiRSgqMx+Ma2pl9McIp7A==
 
 unpipe@1.0.0:
   version "1.0.0"
