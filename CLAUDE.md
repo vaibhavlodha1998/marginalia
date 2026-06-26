@@ -1,36 +1,50 @@
 @AGENTS.md
 
-# Marginalia — project guide
+# Marginalia project guide
 
-AI learning tutor: PDF → sectioned plan (HITL approval) → RAG-grounded,
-jury-reviewed MCQ quiz with a no-spoiler tutor chat → summary + study tips.
-Figures are extracted from the PDF and shown in the Source tab + relevant MCQs.
+AI learning tutor: PDF to a sectioned plan (HITL approval) to a RAG-grounded,
+jury-vetted MCQ quiz, with a no-spoiler tutor per question and a whole-document
+Q&A on the Source tab, ending in a summary + study tips. Figures are extracted
+and shown in the Source tab and relevant MCQs.
 
 ## Commands
 
-- `yarn dev` — dev server. `yarn build` — verify a real build before claiming done.
-- `yarn typecheck` and `yarn lint` — must pass before committing.
-- `yarn db:migrate` — apply `supabase/migrations/*.sql` (needs `DIRECT_URL`).
+- `yarn dev` for the dev server. `yarn build` to verify a real build before claiming done.
+- `yarn typecheck` and `yarn lint` must pass before committing.
+- `yarn db:migrate` applies `supabase/migrations/*.sql` (needs `DIRECT_URL`).
 
 ## Architecture (how it actually works)
 
-- **Server actions** drive data + generation (`src/app/actions/*`): upload, plan,
-  quiz, summary, figures, auth, lessons. **Streaming** (plan + tutor chat) uses
-  the **Vercel AI SDK** via routes under `src/app/api/lessons/[id]/`.
-- **No agent framework.** The chat is the AI SDK `streamText` route; the quiz is
-  server actions. CopilotKit and Deep Agents were removed (see README Roadmap for
-  the concept graph and memory, which were also cut for v1).
+- **Server actions** drive data + most mutations (`src/app/actions/*`): upload,
+  plan, quiz, summary, figures, auth, chat, lessons.
+- **Generation runs in a route handler** (`src/app/api/generate/route.ts`), NOT a
+  server action, so its ~20s does not block Next's single server-action queue
+  (grading, navigation). The client fires it via `fetch`.
+- **Two streaming tutors** (Vercel AI SDK `streamText`): `api/lessons/[id]/chat`
+  is the no-spoiler MCQ tutor (gets the question, never the answer key);
+  `api/lessons/[id]/doc-chat` answers from the whole document. One chat UI picks
+  the route based on whether a question is active.
+- **No agent framework.** CopilotKit, Deep Agents, the concept graph, and memory
+  were removed for v1 (see README Roadmap).
 - **Models** (`src/lib/ollama/models.ts`): `reasoningModel()` = `LLM_MODEL`
-  (glm-5.2, MCQ authoring), `fastModel()` = `FAST_MODEL` (deepseek-v4-flash,
-  everything else), `evalModel()` (jury), `visionModel()` (figures, minimax-m3).
-  Keep cloud models ≤ 3 concurrent (Ollama plan limit).
-- **Embeddings are LOCAL** (`src/lib/rag/embed.ts` → `EMBED_BASE_URL`, default
-  `localhost:11434`, `nomic-embed-text`). Cloud has no embedding models.
-- **RAG**: semantic chunking (`src/lib/rag/`) → `chunks` table (pgvector) →
-  `match_chunks` RPC grounds MCQ authoring.
-- **GLM-5.2 is a thinking model** → slow; it ignores `response_format`/structured
-  output. We prompt for strict JSON and validate with zod (`glmJson`). Do NOT
-  rely on provider-side structured output with Ollama.
+  (glm-5.2, thinking) is used ONLY for the plan orchestrator. `fastModel()` =
+  `FAST_MODEL` (deepseek-v4-flash) does MCQ authoring, the jury, both tutors, the
+  summary, and the title. `visionModel()` = minimax-m3 (figures). Keep cloud
+  models ≤ 3 concurrent (Ollama plan limit).
+- **Embeddings** (`src/lib/rag/embed.ts`): Gemini `gemini-embedding-001` (768-dim)
+  when `GOOGLE_API_KEY` is set (works on serverless), else local Ollama
+  `nomic-embed-text` via `EMBED_BASE_URL`. Same vector space must be used to chunk
+  and to query a lesson.
+- **RAG**: chunking (`src/lib/rag/`) to the `chunks` table (pgvector) to the
+  `match_chunks` RPC. Authoring and both tutors fall back to raw `pdf_pages` text
+  when chunks/embeddings are unavailable.
+- **PDF**: `unpdf` for serverless-safe text + image extraction (no native canvas);
+  `sharp` only encodes figure PNGs. `pdfjs-dist` is client-only (the viewer).
+- **GLM-5.2 is a thinking model** and ignores `response_format`/structured output.
+  We prompt for strict JSON and validate with zod (`glmJson`). Do NOT rely on
+  provider-side structured output with Ollama.
+- **The jury gates on evaluator votes (majority), not their numeric score** (the
+  fast model returns unreliable scores). See `src/lib/mcq/evaluate.ts`.
 
 ## Security / data rules
 
