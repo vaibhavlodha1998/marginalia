@@ -7,41 +7,37 @@ export interface VettedMcq {
   verdict: AggregatedVerdict;
 }
 
-// Author one question and run it past the jury, up to a couple of rounds with
-// the failures' issues fed back. Returns the passing question, plus the
-// best-scoring attempt as a fallback so an objective is never empty.
-const ROUNDS = 2;
-
-export async function authorOneVetted(input: {
+// Author all questions in one call (the model varies them across the full
+// context), jury them once, keep the passing ones, and fill any shortfall with
+// the best-scoring of the rest so the count matches the plan.
+export async function authorVettedMcqs(input: {
   objective: string;
   section: string;
   source: string;
+  count: number;
   figures?: { ref: number; caption: string; page: number | null }[];
-  avoid: string[];
-}): Promise<{ vetted: VettedMcq | null; best: VettedMcq | null }> {
-  let notes: string[] = [];
-  let best: VettedMcq | null = null;
+}): Promise<VettedMcq[]> {
+  const mcqs = await authorMcqs({
+    objective: input.objective,
+    section: input.section,
+    source: input.source,
+    count: input.count,
+    figures: input.figures,
+  });
+  if (!mcqs || !mcqs.length) return [];
 
-  for (let round = 0; round < ROUNDS; round++) {
-    const batch = await authorMcqs({
-      objective: input.objective,
-      section: input.section,
-      source: input.source,
-      count: 1,
-      figures: input.figures,
-      notes: round === 0 ? undefined : notes,
-      avoid: input.avoid,
-    });
-    if (!batch || !batch.length) continue;
+  const verdicts = await evaluateMcqs(input.objective, input.source, mcqs);
+  const paired: VettedMcq[] = mcqs.map((mcq, i) => ({
+    mcq,
+    verdict: verdicts[i] ?? { passed: false, score: 0, evaluations: [] },
+  }));
 
-    const [verdict] = await evaluateMcqs(input.objective, input.source, batch);
-    const mcq = batch[0];
-    if (!verdict) continue;
-    if (verdict.passed) return { vetted: { mcq, verdict }, best };
-    if (!best || verdict.score > best.verdict.score) best = { mcq, verdict };
-    notes = [
-      ...new Set(verdict.evaluations.flatMap((e) => (e.passed ? [] : e.issues))),
-    ].slice(0, 8);
-  }
-  return { vetted: null, best };
+  const passing = paired.filter((p) => p.verdict.passed);
+  if (passing.length >= input.count) return passing.slice(0, input.count);
+
+  // Fill the shortfall with the best-scoring failures so the count matches the plan.
+  const failing = paired
+    .filter((p) => !p.verdict.passed)
+    .sort((a, b) => b.verdict.score - a.verdict.score);
+  return [...passing, ...failing].slice(0, input.count);
 }

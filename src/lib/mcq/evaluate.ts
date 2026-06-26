@@ -46,7 +46,12 @@ Source text:
 ${source}
 
 ${RUBRICS[kind]}
-Return ONLY JSON: { "verdicts": [ { "passed": true, "score": 0.0, "issues": [] } ] }
+For each MCQ return:
+- "passed": true if it satisfies this check, otherwise false.
+- "score": your confidence from 0.0 to 1.0 that it satisfies this check
+  (1.0 = clearly satisfies, 0.5 = borderline, 0.0 = clearly fails). Use the full range.
+- "issues": brief reasons when it does not pass; empty when it passes.
+Return ONLY JSON: { "verdicts": [ { "passed": true, "score": 0.9, "issues": [] } ] }
 with exactly ${mcqs.length} verdicts, in the same order as the MCQs.
 
 MCQs:
@@ -59,7 +64,6 @@ export async function evaluateMcqs(
   mcqs: AuthoredMcq[],
 ): Promise<AggregatedVerdict[]> {
   const quorum = (process.env.EVAL_QUORUM ?? "majority").toLowerCase();
-  const threshold = Number.parseFloat(process.env.EVAL_PASS_THRESHOLD ?? "0.7") || 0.7;
 
   const results = await Promise.all(
     evaluatorKinds.map(async (kind) => {
@@ -77,8 +81,9 @@ export async function evaluateMcqs(
     });
     const passes = evaluations.filter((e) => e.passed).length;
     const avg = evaluations.reduce((s, e) => s + e.score, 0) / (evaluations.length || 1);
+    // Gate on the evaluators' votes; report their average confidence as the score.
     const quorumOk =
       quorum === "majority" ? passes > evaluations.length / 2 : passes === evaluations.length;
-    return { passed: quorumOk && avg >= threshold, score: avg, evaluations };
+    return { passed: quorumOk, score: avg, evaluations };
   });
 }

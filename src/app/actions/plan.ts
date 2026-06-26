@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/config/env";
 import { glmJson } from "@/lib/ollama/json";
-import { fastModel } from "@/lib/ollama/models";
+import { reasoningModel } from "@/lib/ollama/models";
 import { deriveLessonMeta } from "@/lib/llm/title";
 import { planSchema } from "@/lib/schemas/plan";
 import { PLAN_SYSTEM } from "@/lib/plan/prompt";
@@ -39,7 +39,7 @@ async function waitForObjectives(
 
 export async function generatePlan(lessonId: string): Promise<{ count: number }> {
   const supabase = await createClient();
-  const model = serverEnv().FAST_MODEL;
+  const model = serverEnv().LLM_MODEL;
 
   const { data: existing } = await supabase
     .from("objectives")
@@ -62,12 +62,13 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     .order("page_no");
   const allText = (pages ?? []).map((p) => p.text).join("\n\n");
   const titleText = allText.slice(0, 4000);
-  const text = allText.slice(0, 45_000);
+  const text = allText.slice(0, 60_000);
 
-  // Title derivation and plan drafting run concurrently to cut latency.
+  // The plan is the one step that benefits from a thinking model. Title
+  // derivation runs concurrently on the fast model.
   const [meta, plan] = await Promise.all([
     titleText.trim() ? deriveLessonMeta(titleText) : Promise.resolve(null),
-    glmJson(SYSTEM, `Document:\n\n${text}`, planSchema, { model: fastModel() }),
+    glmJson(SYSTEM, `Document:\n\n${text}`, planSchema, { model: reasoningModel() }),
   ]);
   if (meta) {
     await supabase

@@ -1,5 +1,5 @@
 import { glmJson } from "@/lib/ollama/json";
-import { reasoningModel } from "@/lib/ollama/models";
+import { fastModel } from "@/lib/ollama/models";
 import { mcqSetSchema, type AuthoredMcq } from "@/lib/schemas/mcq";
 
 const SYSTEM = `You write rigorous multiple-choice questions to assess one
@@ -73,7 +73,7 @@ Source text:
 ${input.source}`;
 
   const res = await glmJson(SYSTEM, user, mcqSetSchema, {
-    model: reasoningModel(),
+    model: fastModel(),
   });
   return res?.mcqs ?? null;
 }

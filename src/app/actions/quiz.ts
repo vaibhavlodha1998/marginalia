@@ -5,11 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { serverEnv } from "@/lib/config/env";
 import { logError } from "@/lib/log";
-import { authorOneVetted, type VettedMcq } from "@/lib/mcq/vet";
+import { authorVettedMcqs } from "@/lib/mcq/vet";
 import { embedOne, toVector } from "@/lib/rag/embed";
 import type { GradeResult, McqPublic, ReviewMcq } from "@/types/lesson";
 
-const SOURCE_CHARS = 30_000;
+const SOURCE_CHARS = 24_000;
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 180_000;
 
@@ -113,9 +113,9 @@ async function runGeneration(
       .order("page_no");
     source = (pages ?? [])
       .map((p) => p.text)
-      .join("\n\n")
-      .slice(0, SOURCE_CHARS);
+      .join("\n\n");
   }
+  source = source.slice(0, SOURCE_CHARS);
   const count = obj.planned_mcq_count ?? 3;
 
   const { data: figRows } = await supabase
@@ -130,88 +130,18 @@ async function runGeneration(
     page: f.page as number | null,
   }));
 
-  // Incremental: author and vet one question at a time, inserting each as soon
-  // as it passes so the quiz can reveal it while the rest are still generating.
-  const asked: string[] = [];
-  const candidates: VettedMcq[] = [];
-  let order = 0;
-
-  const insertOne = async (v: VettedMcq, orderIndex: number): Promise<void> => {
-    const m = v.mcq;
-    const { data: ins } = await admin
-      .from("mcqs")
-      .insert({
-        objective_id: objectiveId,
-        figure_id:
-          m.figureRef && figures[m.figureRef - 1]
-            ? figures[m.figureRef - 1].id
-            : null,
-        question: m.question,
-        choices: m.choices,
-        correct_index: m.correctIndex,
-        explanation: m.explanation,
-        choice_rationales: m.choiceRationales,
-        hint: m.hints[0],
-        hints: m.hints,
-        figure_placement: m.figureRef ? m.figurePlacement : "question",
-        grounded:
-          v.verdict.evaluations.find((e) => e.kind === "grounding")?.passed ?? false,
-        model,
-        validation_status: "valid",
-        eval_status: v.verdict.passed ? "passed" : "failed",
-        eval_score: v.verdict.score,
-        eval_runs: 1,
-        order_index: orderIndex,
-      })
-      .select("id")
-      .single();
-    if (!ins) throw new Error("mcq insert failed");
-
-    const evalRows = v.verdict.evaluations.map((e) => ({
-      mcq_id: ins.id,
-      evaluator: e.kind,
-      passed: e.passed,
-      score: e.score,
-      issues: e.issues,
-      model: serverEnv().EVAL_MODEL,
-      run: 1,
-    }));
-    if (evalRows.length) await admin.from("mcq_evaluations").insert(evalRows);
-    asked.push(m.question);
-    revalidatePath(`/lessons/${obj.lesson_id}`);
-  };
-
+  // Author the whole set in one call (full context, varied questions) and jury
+  // it once, then keep passing questions and fill any shortfall to match the plan.
   const figs = figures.map(({ ref, caption, page }) => ({ ref, caption, page }));
-  let attempts = 0;
-  while (order < count && attempts < count + 2) {
-    attempts++;
-    const { vetted, best } = await authorOneVetted({
-      objective: obj.title,
-      section: obj.section ?? "",
-      source,
-      figures: figs,
-      avoid: asked,
-    });
-    if (vetted) {
-      await insertOne(vetted, order);
-      order++;
-    } else if (best) {
-      candidates.push(best);
-    }
-  }
+  const vetted = await authorVettedMcqs({
+    objective: obj.title,
+    section: obj.section ?? "",
+    source,
+    count,
+    figures: figs,
+  });
 
-  // Fill any remaining slots so the question count matches the plan, using the
-  // best-scoring attempts we already authored (no extra model calls).
-  if (order < count && candidates.length) {
-    candidates.sort((a, b) => b.verdict.score - a.verdict.score);
-    for (const cand of candidates) {
-      if (order >= count) break;
-      await insertOne(cand, order);
-      order++;
-    }
-  }
-
-  if (order === 0) {
+  if (!vetted.length) {
     await admin.from("generations").insert({
       lesson_id: obj.lesson_id,
       kind: "mcqs",
@@ -225,6 +155,54 @@ async function runGeneration(
       .eq("id", objectiveId);
     return { count: 0 };
   }
+
+  const rows = vetted.map((v, i) => {
+    const m = v.mcq;
+    return {
+      objective_id: objectiveId,
+      figure_id:
+        m.figureRef && figures[m.figureRef - 1] ? figures[m.figureRef - 1].id : null,
+      question: m.question,
+      choices: m.choices,
+      correct_index: m.correctIndex,
+      explanation: m.explanation,
+      choice_rationales: m.choiceRationales,
+      hint: m.hints[0],
+      hints: m.hints,
+      figure_placement: m.figureRef ? m.figurePlacement : "question",
+      grounded:
+        v.verdict.evaluations.find((e) => e.kind === "grounding")?.passed ?? false,
+      model,
+      validation_status: "valid" as const,
+      eval_status: (v.verdict.passed ? "passed" : "failed") as "passed" | "failed",
+      eval_score: v.verdict.score,
+      eval_runs: 1,
+      order_index: i,
+    };
+  });
+
+  const { data: inserted, error: insErr } = await admin
+    .from("mcqs")
+    .insert(rows)
+    .select("id");
+  if (insErr) throw new Error(insErr.message);
+
+  const evalRows = vetted.flatMap((v, i) => {
+    const mcqId = inserted?.[i]?.id as string | undefined;
+    if (!mcqId) return [];
+    return v.verdict.evaluations.map((e) => ({
+      mcq_id: mcqId,
+      evaluator: e.kind,
+      passed: e.passed,
+      score: e.score,
+      issues: e.issues,
+      model: serverEnv().EVAL_MODEL,
+      run: 1,
+    }));
+  });
+  if (evalRows.length) await admin.from("mcq_evaluations").insert(evalRows);
+
+  const order = rows.length;
 
   await admin.from("generations").insert({
     lesson_id: obj.lesson_id,
