@@ -53,6 +53,16 @@ export async function POST(
     logError("docchat.grounding", e);
   }
 
+  // Fall back to the raw document text when chunks/embeddings are unavailable.
+  if (!context) {
+    const { data: pages } = await supabase
+      .from("pdf_pages")
+      .select("text")
+      .eq("lesson_id", id)
+      .order("page_no");
+    context = (pages ?? []).map((p) => p.text).join("\n\n").slice(0, 60_000);
+  }
+
   await supabase.from("chat_messages").insert({
     lesson_id: id,
     user_id: user.id,

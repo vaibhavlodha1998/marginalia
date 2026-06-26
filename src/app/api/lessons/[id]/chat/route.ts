@@ -99,6 +99,16 @@ export async function POST(
     }
   }
 
+  // Fall back to raw document text when chunks/embeddings are unavailable.
+  if (question && !context) {
+    const { data: pages } = await supabase
+      .from("pdf_pages")
+      .select("text")
+      .eq("lesson_id", id)
+      .order("page_no");
+    context = (pages ?? []).map((p) => p.text).join("\n\n").slice(0, 30_000);
+  }
+
   // Persist the new user turn.
   const last = body.messages?.[body.messages.length - 1];
   if (last?.role === "user" && typeof last.content === "string") {
