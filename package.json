@@ -17,6 +17,7 @@
     "@ai-sdk/react": "^3.0.211",
     "@langchain/core": "^1.2.1",
     "@langchain/openai": "^1.5.3",
+    "@napi-rs/canvas": "^1.0.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.101.1",
@@ -37,6 +38,7 @@
     "remark-math": "^6.0.0",
     "sharp": "^0.35.2",
     "tailwind-merge": "^3.6.0",
+    "vercel": "^54.17.3",
     "zod": "^3.25.0",
     "zustand": "^5.0.14"
   },

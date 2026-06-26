@@ -1,4 +1,3 @@
-import { getDocument, OPS } from "pdfjs-dist/legacy/build/pdf.mjs";
 import sharp from "sharp";
 
 export interface ExtractedImage {
@@ -26,6 +25,7 @@ function getObj(objs: { get(name: string, cb: (v: unknown) => void): void }, nam
 export async function extractPdfImages(
   data: Uint8Array,
 ): Promise<ExtractedImage[]> {
+  const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loadingTask = getDocument({ data });
   const doc = await loadingTask.promise;
   const out: ExtractedImage[] = [];
