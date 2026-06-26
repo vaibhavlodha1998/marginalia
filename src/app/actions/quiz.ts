@@ -60,7 +60,7 @@ export async function generateObjectiveMcqs(
   // Atomic claim so concurrent callers don't author a duplicate set.
   const { data: won } = await supabase.rpc("claim_objective_mcq_gen", {
     p_objective_id: objectiveId,
-    p_stale_seconds: 300,
+    p_stale_seconds: 120,
   });
   if (!won) return { count: await waitForMcqs(supabase, objectiveId) };
 

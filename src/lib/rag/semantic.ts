@@ -1,6 +1,11 @@
 import { embed } from "./embed";
 import type { DocChunk } from "./chunk";
 
+// Kept for reference but NOT wired up: this embeds every sentence to find topic
+// boundaries, which is too many embedding calls (cost and provider rate limits)
+// on large documents. buildLessonChunks uses the fixed-size chunkPages instead.
+// Swap back in if a cheaper or local embedding endpoint makes it affordable.
+
 function splitSentences(text: string): string[] {
   return text
     .replace(/\s+/g, " ")

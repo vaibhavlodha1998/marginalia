@@ -134,9 +134,9 @@ export function QuizRunner({
         if (list.length && status === "ready") {
           setPhase("ready");
         } else {
-          if (status !== "generating") {
-            fireGenerate(objectiveId).catch(() => {});
-          }
+          // Always (re)fire: the claim dedupes a live run and reclaims a stale one,
+          // so a generation that died can't leave the objective wedged.
+          fireGenerate(objectiveId).catch(() => {});
           if (list.length) {
             setPhase("ready");
             setGenerating(true);

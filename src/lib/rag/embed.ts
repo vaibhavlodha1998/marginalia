@@ -23,25 +23,31 @@ export async function embed(inputs: string[]): Promise<number[][]> {
 
 async function embedGemini(inputs: string[], apiKey: string): Promise<number[][]> {
   const model = serverEnv().GEMINI_EMBED_MODEL;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents`;
   const out: number[][] = [];
   for (let i = 0; i < inputs.length; i += 100) {
     const batch = inputs.slice(i, i + 100);
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents`,
-      {
+    const body = JSON.stringify({
+      requests: batch.map((text) => ({
+        model: `models/${model}`,
+        content: { parts: [{ text }] },
+        outputDimensionality: 768,
+      })),
+    });
+
+    let res: Response | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await fetch(url, {
         method: "POST",
         headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requests: batch.map((text) => ({
-            model: `models/${model}`,
-            content: { parts: [{ text }] },
-            outputDimensionality: 768,
-          })),
-        }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`gemini embed failed: ${res.status} ${await res.text()}`);
+        body,
+      });
+      // Back off and retry on transient rate-limit / overload.
+      if (res.status !== 429 && res.status !== 503) break;
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+    if (!res || !res.ok) {
+      throw new Error(`gemini embed failed: ${res?.status} ${await res?.text()}`);
     }
     const json = (await res.json()) as { embeddings?: { values: number[] }[] };
     if (!json.embeddings?.length) throw new Error("gemini embed returned no vectors");
