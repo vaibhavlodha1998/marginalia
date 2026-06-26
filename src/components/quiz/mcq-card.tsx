@@ -108,10 +108,10 @@ export function McqCard({
             </span>
             That&apos;s right
             {result.attempts != null && (
-              <span className="ml-auto text-[11px] font-semibold normal-case text-correct-ink/70">
+              <span className="ml-auto rounded-full bg-correct/15 px-2.5 py-1 text-[11px] font-bold normal-case text-correct-ink">
                 {result.attempts === 1
                   ? "First try"
-                  : `Solved in ${result.attempts} attempts`}
+                  : `Solved in ${result.attempts} tries`}
               </span>
             )}
           </div>
