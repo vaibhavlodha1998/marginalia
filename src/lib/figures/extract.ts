@@ -1,3 +1,5 @@
+import { extractImages, getDocumentProxy } from "unpdf";
+
 export interface ExtractedImage {
   page: number;
   png: Buffer;
@@ -7,23 +9,11 @@ export interface ExtractedImage {
 
 const MIN_AREA = 15_000; // skip icons/logos
 
-interface PdfImage {
-  width: number;
-  height: number;
-  kind: number;
-  data: Uint8Array | Uint8ClampedArray;
-}
-
-function getObj(objs: { get(name: string, cb: (v: unknown) => void): void }, name: string) {
-  return new Promise<unknown>((resolve) => objs.get(name, resolve));
-}
-
-// Pulls embedded raster images straight out of the PDF (no rasterization /
-// native canvas needed) and encodes each to PNG.
+// Pull embedded raster images via unpdf (serverless pdfjs, no native canvas) and
+// encode each to PNG with sharp.
 export async function extractPdfImages(
   data: Uint8Array,
 ): Promise<ExtractedImage[]> {
-  const { getDocument, OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // Skip figures (rather than crash) if sharp's native binary is unavailable.
   let sharp: typeof import("sharp").default;
   try {
@@ -31,46 +21,38 @@ export async function extractPdfImages(
   } catch {
     return [];
   }
-  const loadingTask = getDocument({ data });
-  const doc = await loadingTask.promise;
+
+  const pdf = await getDocumentProxy(data);
   const out: ExtractedImage[] = [];
 
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const ops = await page.getOperatorList();
-    const seen = new Set<string>();
+  for (let page = 1; page <= pdf.numPages; page++) {
+    let images: Awaited<ReturnType<typeof extractImages>>;
+    try {
+      images = await extractImages(pdf, page);
+    } catch {
+      continue;
+    }
 
-    for (let j = 0; j < ops.fnArray.length; j++) {
-      if (ops.fnArray[j] !== OPS.paintImageXObject) continue;
-      const name = ops.argsArray[j][0];
-      if (typeof name !== "string" || seen.has(name)) continue;
-      seen.add(name);
-
+    for (const img of images) {
+      if (!img.data || !img.width || !img.height) continue;
+      if (img.width * img.height < MIN_AREA) continue;
       try {
-        const img = (await getObj(page.objs, name)) as PdfImage | null;
-        if (!img?.data || !img.width || !img.height) continue;
-        if (img.width * img.height < MIN_AREA) continue;
-        const channels = img.kind === 3 ? 4 : img.kind === 2 ? 3 : 0;
-        if (!channels) continue; // unsupported (e.g. 1-bpp masks)
-
         const buf = Buffer.from(
-          img.data.buffer ?? (img.data as unknown as ArrayBuffer),
+          img.data.buffer,
+          img.data.byteOffset,
+          img.data.byteLength,
         );
-        if (buf.length < img.width * img.height * channels) continue;
-
         const png = await sharp(buf, {
-          raw: { width: img.width, height: img.height, channels },
+          raw: { width: img.width, height: img.height, channels: img.channels },
         })
           .png()
           .toBuffer();
-        out.push({ page: i, png, width: img.width, height: img.height });
+        out.push({ page, png, width: img.width, height: img.height });
       } catch {
         // skip undecodable image
       }
     }
-    page.cleanup();
   }
 
-  await loadingTask.destroy();
   return out;
 }
