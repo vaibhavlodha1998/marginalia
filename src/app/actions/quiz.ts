@@ -372,6 +372,7 @@ export async function getObjectiveReview(
             explanation: a.correct ? (fb?.explanation ?? null) : null,
             choiceRationales: a.correct ? (fb?.choice_rationales ?? null) : null,
             hint: !a.correct ? reviewHint(fb, a.attempt_count) : null,
+            attempts: a.attempt_count,
           }
         : null,
     };
@@ -394,12 +395,14 @@ export async function gradeMcq(
     explanation: string | null;
     choice_rationales: string[] | null;
     hint: string | null;
+    attempt_count: number | null;
   };
   return {
     correct: row.correct,
     explanation: row.explanation ?? null,
     choiceRationales: row.choice_rationales ?? null,
     hint: row.hint ?? null,
+    attempts: row.attempt_count ?? null,
   };
 }
 

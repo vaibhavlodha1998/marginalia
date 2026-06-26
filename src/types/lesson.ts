@@ -31,6 +31,7 @@ export interface GradeResult {
   explanation: string | null;
   choiceRationales: string[] | null;
   hint: string | null;
+  attempts: number | null;
 }
 
 export interface ReviewAnswer {
@@ -39,6 +40,7 @@ export interface ReviewAnswer {
   explanation: string | null;
   choiceRationales: string[] | null;
   hint: string | null;
+  attempts: number;
 }
 
 export interface ReviewMcq extends McqPublic {

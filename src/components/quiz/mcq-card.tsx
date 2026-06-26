@@ -107,6 +107,13 @@ export function McqCard({
               ✓
             </span>
             That&apos;s right
+            {result.attempts != null && (
+              <span className="ml-auto text-[11px] font-semibold normal-case text-correct-ink/70">
+                {result.attempts === 1
+                  ? "First try"
+                  : `Solved in ${result.attempts} attempts`}
+              </span>
+            )}
           </div>
           <RichText className="text-[16px] leading-[1.75] text-ink">
             {result.explanation}

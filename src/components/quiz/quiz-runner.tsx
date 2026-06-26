@@ -48,6 +48,7 @@ function toAnswer(r: ReviewMcq): Answer {
           explanation: r.review.explanation,
           choiceRationales: r.review.choiceRationales,
           hint: r.review.hint,
+          attempts: r.review.attempts,
         },
       }
     : { selected: null, result: null };
