@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import {
   getObjectiveReview,
   getObjectiveGenStatus,
-  generateObjectiveMcqs,
   gradeMcq,
   completeObjective,
 } from "@/app/actions/quiz";
+
+// Plain request, so generation doesn't block the action queue (grading/nav).
+function fireGenerate(objectiveId: string) {
+  return fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ objectiveId }),
+  });
+}
 import { DifficultyPill } from "@/components/ui/difficulty-pill";
 import { ThinkingDots } from "@/components/ui/thinking-dots";
 import { RichText } from "@/components/ui/rich-text";
@@ -126,7 +134,7 @@ export function QuizRunner({
           setPhase("ready");
         } else {
           if (status !== "generating") {
-            generateObjectiveMcqs(objectiveId).catch(() => {});
+            fireGenerate(objectiveId).catch(() => {});
           }
           if (list.length) {
             setPhase("ready");
@@ -139,7 +147,7 @@ export function QuizRunner({
 
         // Pre-generate the next objective so advancing is seamless.
         if (nextObjectiveId) {
-          generateObjectiveMcqs(nextObjectiveId).catch(() => {});
+          fireGenerate(nextObjectiveId).catch(() => {});
         }
       } catch {
         if (!cancelled) setPhase("error");

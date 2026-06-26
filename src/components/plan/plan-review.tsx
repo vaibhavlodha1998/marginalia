@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { approvePlan } from "@/app/actions/plan";
-import { generateObjectiveMcqs } from "@/app/actions/quiz";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/ui/rich-text";
 import { PlanObjectiveRow } from "./plan-objective-row";
@@ -66,9 +65,14 @@ export function PlanReview({
   }
 
   function confirm() {
-    // Pre-warm the first objective's questions so the quiz is ready on arrival.
+    // Pre-warm the first objective's questions (plain request, off the action queue).
     const first = rows.find((r) => r.included);
-    if (first) generateObjectiveMcqs(first.id).catch(() => {});
+    if (first)
+      fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objectiveId: first.id }),
+      }).catch(() => {});
 
     startTransition(async () => {
       await approvePlan(
