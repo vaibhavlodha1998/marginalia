@@ -20,6 +20,23 @@ Return ONLY a JSON object, no prose, no code fences, of the form:
   ] }
 ] }`;
 
+// Claim loser: wait for the winning draft's objectives to land.
+async function waitForObjectives(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  lessonId: string,
+): Promise<number> {
+  const deadline = Date.now() + 180_000;
+  for (;;) {
+    const { data } = await supabase
+      .from("objectives")
+      .select("id")
+      .eq("lesson_id", lessonId);
+    if (data && data.length) return data.length;
+    if (Date.now() > deadline) return 0;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 export async function generatePlan(lessonId: string): Promise<{ count: number }> {
   const supabase = await createClient();
   const model = serverEnv().FAST_MODEL;
@@ -30,6 +47,13 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
     .eq("lesson_id", lessonId)
     .limit(1);
   if (existing && existing.length) return { count: existing.length };
+
+  // One draft at a time; a concurrent caller waits for its result.
+  const { data: won } = await supabase.rpc("claim_plan_gen", {
+    p_lesson_id: lessonId,
+    p_stale_seconds: 180,
+  });
+  if (!won) return { count: await waitForObjectives(supabase, lessonId) };
 
   const { data: pages } = await supabase
     .from("pdf_pages")
@@ -60,6 +84,7 @@ export async function generatePlan(lessonId: string): Promise<{ count: number }>
       status: "error",
       error: "plan generation failed",
     });
+    await supabase.from("lessons").update({ plan_gen_at: null }).eq("id", lessonId);
     return { count: 0 };
   }
 
