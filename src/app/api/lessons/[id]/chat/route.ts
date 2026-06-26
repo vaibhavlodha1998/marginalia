@@ -6,6 +6,8 @@ import { embedOne, toVector } from "@/lib/rag/embed";
 import { rateLimit } from "@/lib/ratelimit";
 import { logError } from "@/lib/log";
 
+export const maxDuration = 60;
+
 const LETTERS = ["A", "B", "C", "D"];
 
 export async function POST(

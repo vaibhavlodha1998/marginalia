@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { PlanScreen } from "@/components/plan/plan-screen";
 import type { Objective } from "@/types/lesson";
 
+// Plan drafting runs as a server action on this route.
+export const maxDuration = 60;
+
 export default async function PlanPage({
   params,
 }: {

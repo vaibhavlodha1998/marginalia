@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { UploadDropzone } from "@/components/upload/upload-dropzone";
 
+// Upload + figure extraction can run long on a serverless function.
+export const maxDuration = 60;
+
 export default async function NewLessonPage() {
   const supabase = await createClient();
   const {

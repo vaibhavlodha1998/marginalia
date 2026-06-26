@@ -1,6 +1,9 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LessonWorkspace } from "@/components/workspace/lesson-workspace";
+
+// MCQ generation (author + jury) runs as a server action on this route.
+export const maxDuration = 60;
 import type {
   ProgressMap,
   WorkspaceFigure,
