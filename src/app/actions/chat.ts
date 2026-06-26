@@ -7,17 +7,18 @@ export interface ChatTurn {
   content: string;
 }
 
-// Prior tutor conversation for one question, so it survives a refresh.
+// Prior conversation so it survives a refresh. Pass an mcqId for a question's
+// tutor thread, or null for the Source-tab document thread.
 export async function getChatMessages(
   lessonId: string,
-  mcqId: string,
+  mcqId: string | null,
 ): Promise<ChatTurn[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const base = supabase
     .from("chat_messages")
     .select("role, content")
-    .eq("lesson_id", lessonId)
-    .eq("mcq_id", mcqId)
+    .eq("lesson_id", lessonId);
+  const { data } = await (mcqId ? base.eq("mcq_id", mcqId) : base.is("mcq_id", null))
     .order("created_at");
 
   return (data ?? [])

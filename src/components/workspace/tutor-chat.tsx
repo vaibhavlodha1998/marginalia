@@ -34,11 +34,10 @@ export function TutorChat({
     setMessages([]);
   }
 
-  // Load any saved conversation for this question.
+  // Saved thread: per-question for the MCQ tutor, or the document thread (null).
   useEffect(() => {
-    if (!active?.mcqId) return;
     let cancelled = false;
-    getChatMessages(lessonId, active.mcqId)
+    getChatMessages(lessonId, active?.mcqId ?? null)
       .then((turns) => {
         if (!cancelled && turns.length) setMessages(turns);
       })
@@ -54,20 +53,23 @@ export function TutorChat({
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || pending || !active) return;
+    if (!trimmed || pending) return;
     const history = [...messages, { role: "user" as const, content: trimmed }];
     setMessages([...history, { role: "assistant", content: "" }]);
     setInput("");
     setPending(true);
     try {
-      const res = await fetch(`/api/lessons/${lessonId}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: history,
-          mcqId: active.mcqId,
-        }),
-      });
+      // A question in scope uses the no-spoiler MCQ tutor; otherwise the document Q&A.
+      const res = await fetch(
+        active ? `/api/lessons/${lessonId}/chat` : `/api/lessons/${lessonId}/doc-chat`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            active ? { messages: history, mcqId: active.mcqId } : { messages: history },
+          ),
+        },
+      );
       if (!res.body) throw new Error("no stream");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -148,7 +150,7 @@ export function TutorChat({
         <div className="max-w-[86%] self-start rounded-[14px_14px_14px_4px] border border-border bg-surface px-3.5 py-[11px] text-[13.5px] leading-[1.55] text-ink">
           {active
             ? "Ask me for a hint or to explain anything about this question, and I'll never give the answer away."
-            : "Open a question in the Quiz tab and I'll help you think it through."}
+            : "Ask me anything about this document and I'll explain it, grounded in what it says."}
         </div>
 
         {messages.map((m, i) =>
@@ -179,35 +181,37 @@ export function TutorChat({
       </div>
 
       <div className="border-t border-border-strong px-4 pb-4 pt-3">
-        <div className="mb-2.5 flex gap-2">
-          {SUGGESTED.map((s) => (
-            <button
-              key={s}
-              type="button"
-              disabled={!active || pending}
-              onClick={() => send(s)}
-              className="rounded-2xl border border-[#d7dcec] bg-[#eceef6] px-3 py-1.5 text-[12px] text-primary disabled:opacity-50"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        {active && (
+          <div className="mb-2.5 flex gap-2">
+            {SUGGESTED.map((s) => (
+              <button
+                key={s}
+                type="button"
+                disabled={pending}
+                onClick={() => send(s)}
+                className="rounded-2xl border border-[#d7dcec] bg-[#eceef6] px-3 py-1.5 text-[12px] text-primary disabled:opacity-50"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-[12px] border border-border bg-surface py-2 pl-3 pr-2">
           <input
             value={input}
-            disabled={!active || pending}
+            disabled={pending}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") send(input);
             }}
             placeholder={
-              active ? "Ask for a hint or an explanation…" : "Open a question first…"
+              active ? "Ask for a hint or an explanation…" : "Ask about this document…"
             }
             className="flex-1 bg-transparent py-1 text-[13.5px] text-ink outline-none placeholder:text-ink-3 disabled:opacity-60"
           />
           <button
             type="button"
-            disabled={!active || pending || !input.trim()}
+            disabled={pending || !input.trim()}
             onClick={() => send(input)}
             className="flex size-8 flex-none items-center justify-center rounded-lg bg-primary text-[14px] font-semibold text-on-primary disabled:opacity-50"
           >
@@ -215,7 +219,9 @@ export function TutorChat({
           </button>
         </div>
         <p className="mt-2 text-center text-[10.5px] text-ink-4">
-          Your tutor gives hints and explanations — never the answer.
+          {active
+            ? "Your tutor gives hints and explanations, never the answer."
+            : "Answers come from your document."}
         </p>
       </div>
     </aside>
